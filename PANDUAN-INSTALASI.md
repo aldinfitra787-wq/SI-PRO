@@ -1,4 +1,4 @@
-# PANDUAN INSTALASI — SI-PRO v2.0
+# PANDUAN INSTALASI — SI-PRO v2.1
 
 Sistem Informasi Pendidikan dan Pelatihan · SPN Polda Papua Barat
 
@@ -15,13 +15,22 @@ Yang Anda terima:
 
 | Berkas | Untuk apa |
 |---|---|
-| `Kode.gs` | Backend. Disalin-tempel ke editor Apps Script (**berubah di v2.0**) |
+| `Kode.gs` | Backend. Disalin-tempel ke editor Apps Script (**berubah di v2.1**) |
 | `appsscript.json` | Manifest Apps Script (zona waktu WIT & izin) |
 | `si-prolat.zip` | Frontend untuk GitHub Pages (isi ZIP = isi repository) |
 | `PANDUAN-INSTALASI.md` | Dokumen ini |
 
 Urutan kerja: **A → C → D**. Total ±30 menit. Login memakai **username + password** (tidak perlu akun Google bagi petugas, tidak perlu Google Cloud Console).
 
+> **Sudah memasang v2.0?** Perbarui **keduanya**: (1) ganti seluruh isi `Kode.gs` → **Deploy → Kelola deployment → ✏️ Edit → Versi: Versi baru → Deploy**; (2) ganti isi folder frontend dengan isi `si-prolat.zip`, isi lagi `GAS_URL`, lalu `git add .` → `git commit -m "v2.1"` → `git push`. Tidak ada sheet/kolom baru.
+>
+> **Perubahan v2.1 — kuota & petugas selalu sinkron:**
+> - **Penyebab utama "kuota sudah diatur tapi petugas tidak bisa mengisi":** pelatihan masih berstatus **DRAFT** (kuota disimpan dengan *Simpan Kuota* tetapi belum *Bagikan*). Petugas hanya melihat pelatihan yang sudah **dibagikan**. Kini hal ini dicegah:
+>   - Jendela **Atur Kuota** pelatihan Draft memakai tombol utama **Simpan & Bagikan** yang menyimpan kuota **dan** membagikan dalam **satu langkah** di server (tidak bisa setengah jalan). *Simpan Draft* tetap ada bila belum ingin dibagikan, dan pesannya menegaskan "petugas belum dapat melihatnya".
+>   - Di Kelola Master → Pelatihan, baris Draft diberi keterangan **Belum dibagikan** / **Belum ada kuota**.
+> - **Atur Kuota: centang dulu, lalu isi kuota.** Langkah 1 centang Satker Polda / Polres yang mengikuti (per baris, per kelompok, atau tombol *Semua Satker Polda* / *Semua Polres*); langkah 2 kolom kuota baru terbuka untuk Satker yang dicentang (isi satu per satu atau *Kuota untuk yang dicentang → Terapkan*). Satker yang tidak dicentang otomatis tanpa kuota. Tombol simpan terkunci bila ada Satker tercentang yang kuotanya belum diisi. Ringkasan di bawah menampilkan jumlah tercentang, total kuota, dan Satker yang **belum punya akun petugas**. Satker yang sudah mendaftarkan peserta tidak bisa dilepas centangnya.
+> - **Formulir Input Peserta (petugas) mengambil data terbaru dari server setiap dibuka**, sehingga kuota/pelatihan yang baru dibagikan langsung muncul. Bila belum ada pelatihan, kotak kuning menjelaskan **alasannya** (belum dibagikan / batas pendaftaran lewat / sudah selesai), menampilkan **ID Satker** petugas (untuk dicocokkan Admin), dan tombol **Periksa ulang**; begitu pelatihan tersedia, formulir aktif dengan sendirinya.
+>
 > **Sudah memasang v1.9?** Perbarui **keduanya**: (1) ganti seluruh isi `Kode.gs` → **Deploy → Kelola deployment → ✏️ Edit → Versi: Versi baru → Deploy** (URL tetap sama); (2) ganti isi folder frontend dengan isi `si-prolat.zip`, isi lagi `GAS_URL` di `js/config.js`, lalu `git add .` → `git commit -m "v2.0"` → `git push`. Sheet baru `Pengumuman` dibuat **otomatis** saat aplikasi pertama kali dibuka.
 >
 > **Perubahan v2.0:**

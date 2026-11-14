@@ -204,7 +204,7 @@ const MASTER_TABS = {
         '<td data-l="Batas daftar" class="mono-n" style="font-size:13px">' + (p.Batas_Kirim ? fmtTgl(p.Batas_Kirim) + (lewat && p.Status === 'Aktif' ? ' <span class="tag tag-gray">LEWAT</span>' : '') : '<span class="c-red">Belum diisi</span>') + '</td>' +
         '<td data-l="Satker ditunjuk" class="c mono-n">' + (ns || '<span class="c-red">0</span>') + '</td>' +
         '<td data-l="Terisi / kuota" class="c mono-n" style="font-weight:700">' + n + ' / ' + (kq || '—') + '</td>' +
-        '<td data-l="Status">' + D.statusTag(p) + (p.Dibagikan_Pada && p.Status !== 'Draft' ? '<div class="sub" style="margin-top:4px">' + fmtTgl(p.Dibagikan_Pada) + '</div>' : '') + '</td>' +
+        '<td data-l="Status">' + D.statusTag(p) + (p.Dibagikan_Pada && p.Status !== 'Draft' ? '<div class="sub" style="margin-top:4px">' + fmtTgl(p.Dibagikan_Pada) + '</div>' : p.Status === 'Draft' ? '<div class="sub c-amber" style="margin-top:4px" title="Petugas Satker belum dapat melihat pelatihan ini">' + (ns ? 'Belum dibagikan' : 'Belum ada kuota') + '</div>' : '') + '</td>' +
         '<td class="acts-td"><div class="acts" style="flex-wrap:wrap;max-width:300px;margin-left:auto">' + acts + '</div></td></tr>';
     }).join('') : '<tr><td colspan="7"><div class="empty">' + ic('graduation') + '<b>Belum ada pelatihan</b>Tekan "Pelatihan Baru" untuk membuat.</div></td></tr>';
   },
@@ -472,60 +472,95 @@ function pelatihanModal(p) {
   $('[data-f]', m.el).addEventListener('submit', (e) => { e.preventDefault(); save(); });
 }
 
-/** Langkah 2: tunjuk Satker Polda & Polres dan tentukan kuota masing-masing. */
+/**
+ * Langkah 2: CENTANG dulu Satker Polda / Polres yang mengikuti pelatihan, lalu isi kuota masing-masing.
+ * Hanya Satker yang dicentang yang mendapat kuota → tidak ada kuota "tersembunyi" yang tidak sinkron.
+ * Pelatihan Draft: tombol utama "Simpan & Bagikan" menyimpan kuota sekaligus membagikan (satu langkah).
+ */
 function alokasiModal(p) {
   const al = Object.assign({}, D.alok(p.ID_Pelatihan));
   const terisi = {}; D.pesertaOf(p.ID_Pelatihan).forEach((x) => { terisi[x.ID_Satker] = (terisi[x.ID_Satker] || 0) + 1; });
-  const sats = D.d.satker.filter((s) => s.Status !== 'Nonaktif' || al[s.ID_Satker]).sort(D.sortSat);
+  const sats = D.d.satker.filter((s) => s.Status !== 'Nonaktif' || al[s.ID_Satker] || terisi[s.ID_Satker]).sort(D.sortSat);
+  const chk = new Set(sats.filter((s) => al[s.ID_Satker] > 0 || terisi[s.ID_Satker]).map((s) => s.ID_Satker));
+  const jn = (s) => (s.Jenis === 'Polres' ? 'Polres' : 'Satker Polda');
+  const draft = p.Status === 'Draft';
   let q = '';
-  const m = modal({ title: 'Atur Kuota — ' + p.Nama_Pelatihan, icon: 'users', cls: 'wide', noFocus: true, sticky: true,
-    body: '<div class="quick" style="margin-bottom:12px"><b style="font-size:13px">Isi cepat:</b>' +
-      '<span>Semua Polres</span><input class="input" type="number" min="0" data-qv="Polres" value="2"><button class="btn btn-sm" data-qa="Polres">Terapkan</button>' +
-      '<span style="margin-left:8px">Semua Satker Polda</span><input class="input" type="number" min="0" data-qv="Satker Polda" value="1"><button class="btn btn-sm" data-qa="Satker Polda">Terapkan</button>' +
-      '<button class="btn btn-sm act-del" data-clear style="margin-left:auto">Kosongkan semua</button></div>' +
-      '<div class="with-ic" style="margin-bottom:10px">' + ic('search') + '<input class="input" data-s placeholder="Cari Satker…"></div>' +
-      '<div class="tbl-wrap" style="border:1px solid var(--line);border-radius:8px;max-height:52vh;overflow:auto"><table class="tbl"><thead><tr><th>Satker / Polres</th><th>Jenis</th><th>Petugas PIC</th><th class="c">Terdaftar</th><th class="c">Kuota</th></tr></thead><tbody data-rows></tbody></table></div>',
-    foot: '<div class="alok-sum" style="margin-right:auto" data-sum></div><button class="btn" data-x>Batal</button><button class="btn btn-navy" data-save>' + ic('save') + 'Simpan Kuota</button>' +
-      (p.Status === 'Draft' ? '<button class="btn btn-primary" data-save-share>' + ic('send') + 'Simpan &amp; Bagikan</button>' : '') });
+  const m = modal({ title: 'Atur Kuota — ' + p.Nama_Pelatihan, icon: 'users', cls: 'wide alok-modal', noFocus: true, sticky: true,
+    body: '<ol class="alok-steps"><li class="on"><b>1</b>Centang Satker / Polres yang mengikuti</li><li><b>2</b>Isi kuota tiap Satker tercentang</li><li><b>3</b>' + (draft ? 'Simpan &amp; Bagikan ke petugas' : 'Simpan — langsung berlaku bagi petugas') + '</li></ol>' +
+      (draft ? '<div class="alert alert-amber" style="margin:0 0 10px">' + ic('alert-triangle') + '<div>Pelatihan ini masih <strong>DRAFT</strong>. Petugas Satker <strong>baru dapat melihat &amp; mengisi peserta setelah dibagikan</strong> — gunakan tombol <strong>Simpan &amp; Bagikan</strong>.</div></div>' : '') +
+      '<div class="quick alok-quick"><b>Centang cepat:</b>' +
+      '<button class="btn btn-sm" data-pick="Satker Polda">' + ic('building') + 'Semua Satker Polda</button><button class="btn btn-sm" data-pick="Polres">' + ic('map-pin') + 'Semua Polres</button>' +
+      '<button class="btn btn-sm" data-unpick>Hapus centang</button><span class="sep"></span>' +
+      '<b>Kuota untuk yang dicentang:</b><input class="input" type="number" min="1" max="999" data-qv value="2"><button class="btn btn-sm btn-navy" data-qa>Terapkan</button></div>' +
+      '<div class="with-ic" style="margin:10px 0">' + ic('search') + '<input class="input" data-s placeholder="Cari Satker / Polres…"></div>' +
+      '<div class="tbl-wrap alok-wrap"><table class="tbl alok-tbl"><thead><tr><th class="ck"></th><th>Satker / Polres</th><th>Polda</th><th>Petugas PIC</th><th class="c">Terdaftar</th><th class="c">Kuota</th></tr></thead><tbody data-rows></tbody></table></div>',
+    foot: '<div class="alok-sum" data-sum></div><button class="btn" data-x>Batal</button>' +
+      (draft ? '<button class="btn" data-save>' + ic('save') + 'Simpan Draft</button><button class="btn btn-primary" data-save-share>' + ic('send') + 'Simpan &amp; Bagikan</button>'
+        : '<button class="btn btn-navy" data-save>' + ic('save') + 'Simpan Kuota</button>') });
+  const defK = () => Math.max(1, parseInt($('[data-qv]', m.el).value, 10) || 1);
+  const centang = (id, on) => {
+    if (on) { chk.add(id); if (!(al[id] > 0)) al[id] = Math.max(defK(), terisi[id] || 0); }
+    else if (terisi[id]) { toast(D.satNama(id) + ' sudah mendaftarkan ' + terisi[id] + ' peserta — tidak bisa dihapus dari pelatihan ini.', 'warn'); return false; }
+    else { chk.delete(id); al[id] = 0; }
+    return true;
+  };
   const sum = () => {
-    const ids = Object.keys(al).filter((k) => al[k] > 0), tot = ids.reduce((s, k) => s + al[k], 0);
-    const pb = ids.filter((k) => (D.sat(k) || {}).Polda === POLDA[0]).length;
-    $('[data-sum]', m.el).innerHTML = '<span>Satker ditunjuk: <b>' + ids.length + '</b> <small class="muted">(PB ' + pb + ' · PBD ' + (ids.length - pb) + ')</small></span><span>Total kuota: <b>' + tot + '</b> orang</span>';
+    const ids = Array.from(chk), tot = ids.reduce((s, k) => s + (al[k] || 0), 0);
+    const pol = ids.filter((k) => jn(D.sat(k) || {}) === 'Polres').length, nol = ids.filter((k) => !(al[k] > 0)).length, tanpa = ids.filter((k) => !D.pic(k).length).length;
+    $('[data-sum]', m.el).innerHTML = '<span>' + ic('check-circle') + '<b>' + ids.length + '</b> dicentang <small class="muted">(Satker Polda ' + (ids.length - pol) + ' · Polres ' + pol + ')</small></span><span>Total kuota <b>' + tot + '</b> orang</span>' +
+      (nol ? '<span class="c-red">' + nol + ' belum diisi kuota</span>' : '') + (tanpa ? '<span class="c-amber" title="Buat akun di tab Pengguna">' + tanpa + ' belum punya akun petugas</span>' : '');
+    $$('[data-save], [data-save-share]', m.el).forEach((b) => { b.disabled = !ids.length || nol > 0; });
   };
   const rows = () => {
     const ql = q.toLowerCase();
-    $('[data-rows]', m.el).innerHTML = POLDA.map((pd) => {
-      const g = sats.filter((s) => s.Polda === pd && (!ql || s.Nama_Satker.toLowerCase().includes(ql))); if (!g.length) return '';
-      return '<tr class="grp ' + (pd === POLDA[1] ? 'pbd' : '') + '"><td colspan="5">' + esc(pd) + '</td></tr>' + g.map((s) => {
-        const k = al[s.ID_Satker] || 0, t = terisi[s.ID_Satker] || 0, pic = D.pic(s.ID_Satker);
-        return '<tr><td><div class="nm">' + esc(s.Nama_Satker) + '</div><div class="sub">' + esc(s.ID_Satker) + '</div></td><td>' + esc(s.Jenis) + '</td>' +
-          '<td>' + (pic.length ? esc(pic[0].Nama) : '<span class="tag tag-amber">BELUM ADA AKUN</span>') + '</td><td class="c mono-n">' + t + '</td>' +
-          '<td class="c"><input class="input kuota-in ' + (k ? 'on' : '') + '" type="number" min="' + t + '" max="999" data-k="' + esc(s.ID_Satker) + '" value="' + (k || '') + '" placeholder="0" aria-label="Kuota ' + esc(s.Nama_Satker) + '"></td></tr>';
-      }).join('');
-    }).join('');
+    $('[data-rows]', m.el).innerHTML = JENIS_SATKER.map((j) => {
+      const g = sats.filter((s) => jn(s) === j && (!ql || s.Nama_Satker.toLowerCase().includes(ql) || s.ID_Satker.toLowerCase().includes(ql))); if (!g.length) return '';
+      const all = g.every((s) => chk.has(s.ID_Satker)), some = g.some((s) => chk.has(s.ID_Satker));
+      return '<tr class="grp ' + (j === 'Polres' ? 'pbd' : '') + '"><td class="ck"><input type="checkbox" data-grp="' + j + '"' + (all ? ' checked' : '') + (some && !all ? ' data-ind' : '') + ' aria-label="Centang semua ' + j + '"></td><td colspan="5">' + ic(j === 'Polres' ? 'map-pin' : 'building') + ' ' + j.toUpperCase() + ' — ' + g.filter((s) => chk.has(s.ID_Satker)).length + ' / ' + g.length + ' dicentang</td></tr>' +
+        g.map((s) => {
+          const id = s.ID_Satker, on = chk.has(id), k = al[id] || 0, t = terisi[id] || 0, pic = D.pic(id);
+          return '<tr class="' + (on ? 'sel' : 'off') + '" data-row="' + esc(id) + '"><td class="ck"><input type="checkbox" data-c="' + esc(id) + '"' + (on ? ' checked' : '') + ' aria-label="Centang ' + esc(s.Nama_Satker) + '"></td>' +
+            '<td><div class="nm">' + esc(s.Nama_Satker) + '</div><div class="sub">' + esc(id) + '</div></td><td>' + D.poldaShort(s.Polda) + '</td>' +
+            '<td>' + (pic.length ? esc(pic[0].Nama) : '<span class="tag tag-amber">BELUM ADA AKUN</span>') + '</td><td class="c mono-n">' + t + '</td>' +
+            '<td class="c">' + (on ? '<input class="input kuota-in ' + (k ? 'on' : 'bad') + '" type="number" min="' + Math.max(1, t) + '" max="999" data-k="' + esc(id) + '" value="' + (k || '') + '" placeholder="isi" aria-label="Kuota ' + esc(s.Nama_Satker) + '">' : '<span class="muted">—</span>') + '</td></tr>';
+        }).join('');
+    }).join('') || '<tr><td colspan="6"><div class="empty">Tidak ada Satker yang cocok.</div></td></tr>';
+    $$('[data-ind]', m.el).forEach((c) => { c.indeterminate = true; });
     sum();
   };
   rows();
   m.el.addEventListener('input', (e) => {
     const k = e.target.dataset.k;
-    if (k) { const v = Math.max(0, parseInt(e.target.value, 10) || 0); al[k] = v; e.target.classList.toggle('on', v > 0); sum(); }
+    if (k) { const v = Math.max(0, parseInt(e.target.value, 10) || 0); al[k] = v; e.target.classList.toggle('on', v > 0); e.target.classList.toggle('bad', !v); sum(); }
     if (e.target.matches('[data-s]')) { q = e.target.value; rows(); }
   });
+  m.el.addEventListener('change', (e) => {
+    const c = e.target.closest('[data-c]');
+    if (c) { if (!centang(c.dataset.c, c.checked)) c.checked = true; rows(); if (c.checked) { const inp = $('[data-k="' + c.dataset.c + '"]', m.el); if (inp) { inp.focus(); inp.select(); } } }
+    const g = e.target.closest('[data-grp]');
+    if (g) { const ql = q.toLowerCase(); sats.filter((s) => jn(s) === g.dataset.grp && (!ql || s.Nama_Satker.toLowerCase().includes(ql))).forEach((s) => centang(s.ID_Satker, g.checked)); rows(); }
+  });
   m.el.addEventListener('click', (e) => {
-    const qa = e.target.closest('[data-qa]');
-    if (qa) { const jn = qa.dataset.qa, v = Math.max(0, parseInt($('[data-qv="' + jn + '"]', m.el).value, 10) || 0); sats.filter((s) => s.Jenis === jn && s.Status !== 'Nonaktif').forEach((s) => { al[s.ID_Satker] = Math.max(v, terisi[s.ID_Satker] || 0); }); rows(); }
-    if (e.target.closest('[data-clear]')) { Object.keys(al).forEach((k) => { al[k] = terisi[k] || 0; }); rows(); }
+    const pk = e.target.closest('[data-pick]'); if (pk) { sats.filter((s) => jn(s) === pk.dataset.pick && s.Status !== 'Nonaktif').forEach((s) => centang(s.ID_Satker, true)); rows(); }
+    if (e.target.closest('[data-unpick]')) { Array.from(chk).forEach((id) => centang(id, false)); rows(); }
+    if (e.target.closest('[data-qa]')) { if (!chk.size) return toast('Centang Satker / Polres terlebih dahulu.', 'warn'); const v = defK(); chk.forEach((id) => { al[id] = Math.max(v, terisi[id] || 0); }); rows(); }
+    // klik di baris (bukan input) = centang/lepas
+    const tr = e.target.closest('tr[data-row]');
+    if (tr && !e.target.closest('input, a, button')) { const id = tr.dataset.row; centang(id, !chk.has(id)); rows(); }
   });
   const save = async (share, btn) => {
-    const items = Object.keys(al).map((k) => ({ ID_Satker: k, Kuota: al[k] || 0 }));
-    if (!items.some((i) => i.Kuota > 0)) return toast('Tunjuk minimal satu Satker dengan kuota lebih dari 0.', 'error');
-    const done = busyBtn(btn, 'Menyimpan…'); m.busy(true);
-    const res = await api('saveAlokasi', { ID_Pelatihan: p.ID_Pelatihan, items });
+    const ids = Array.from(chk);
+    if (!ids.length) return toast('Centang minimal satu Satker / Polres.', 'error');
+    const kosong = ids.filter((k) => !(al[k] > 0)); if (kosong.length) return toast('Isi kuota untuk: ' + kosong.map((k) => D.satNama(k)).join(', ') + '.', 'error');
+    if (share && !p.Batas_Kirim) { toast('Isi batas pendaftaran terlebih dahulu.', 'error'); return pelatihanModal(p); }
+    const items = sats.map((s) => ({ ID_Satker: s.ID_Satker, Kuota: chk.has(s.ID_Satker) ? al[s.ID_Satker] : 0 }));
+    const done = busyBtn(btn, share ? 'Menyimpan & membagikan…' : 'Menyimpan…'); m.busy(true);
+    const res = await api('saveAlokasi', { ID_Pelatihan: p.ID_Pelatihan, items, bagikan: !!share });
     done(); m.busy(false);
     if (!res.success) return toast(res.message, 'error');
-    m.close(); toast(res.message);
+    m.close(); toast(res.message, res.data && res.data.status === 'Draft' ? 'warn' : 'success');
     await Data.sync(true);
-    if (share) bagikanFlow(D.pel(p.ID_Pelatihan) || p);
+    if (share) distribusiModal(D.pel(p.ID_Pelatihan) || p);
   };
   $('[data-save]', m.el).addEventListener('click', (e) => save(false, e.currentTarget));
   const ss = $('[data-save-share]', m.el); if (ss) ss.addEventListener('click', (e) => save(true, e.currentTarget));

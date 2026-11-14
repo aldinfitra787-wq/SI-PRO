@@ -179,6 +179,8 @@ registerPage('input', {
   render(el, param, info) {
     const editId = param || '';
     const batch = !editId && !isAdmin();
+    // Petugas: ambil kuota/pelatihan terbaru dari server setiap membuka formulir (di latar, tidak menunggu)
+    if (!isAdmin() && Date.now() - AppState.lastSync > 15000) Data.sync(true);
     if (batch) {
       // Datang dari tombol "Tambah peserta" pada pelatihan tertentu → pakai pelatihan itu bila daftar masih kosong
       if (InputPg.batch && AppState.selPel && AppState.selPel !== InputPg.batch.pel && !InputPg.batch.rows.some(batchFilled)) { InputPg.batch = null; el._batch = false; }
@@ -189,10 +191,45 @@ registerPage('input', {
   },
   onData(el) {
     if (!el.isConnected || el.hidden) return;
+    const adaBanner = !!$('.kosong-info', el), ada = pelChoices(D.d.me.idSatker).length > 0;
+    if (el._batch && adaBanner === ada && !(InputPg.batch && InputPg.batch.rows.some(batchFilled))) { InputPg.batch = null; batchBuild(el); return; }   // ketersediaan berubah → susun ulang formulir
     if (el._batch) { $$('select[data-k=ID_Pelatihan]', el).forEach((s, i) => { s.innerHTML = batchPelOptions(InputPg.batch.rows[i].ID_Pelatihan, true); }); const bp = $('#bPel', el); if (bp) bp.innerHTML = batchPelOptions(InputPg.batch.pel, false); batchSummary(el); }
     else { inputPelOptions(el); inputKuota(el); }
   }
 });
+
+/**
+ * Petugas: alasan formulir belum aktif — dihitung dari data yang diterima server
+ * (server hanya mengirim pelatihan yang SUDAH DIBAGIKAN dan memberi kuota ke Satker ini).
+ */
+function kosongInfo() {
+  const my = D.d.me.idSatker, pels = D.d.pelatihan.filter((p) => p.Status !== 'Draft');
+  const aktif = pels.filter((p) => p.Status === 'Aktif'), lewat = aktif.filter((p) => D.lewat(p));
+  let why;
+  if (!pels.length) why = 'Belum ada pelatihan yang <strong>dibagikan</strong> ke ' + esc(D.d.me.namaSatker || 'Satker Anda') + '. Bila Admin Induk sudah mengatur kuota, pelatihan perlu <strong>dibagikan</strong> (Kelola Master → Pelatihan → Bagikan / Simpan &amp; Bagikan) agar muncul di sini.';
+  else if (!aktif.length) why = 'Semua pelatihan untuk Satker Anda sudah <strong>selesai</strong>.';
+  else if (lewat.length === aktif.length) why = 'Batas pendaftaran ' + lewat.map((p) => '<strong>' + esc(p.Nama_Pelatihan) + '</strong> (' + fmtTgl(p.Batas_Kirim) + ')').join(', ') + ' sudah lewat. Hubungi Admin Induk bila perlu dibuka kembali.';
+  else why = 'Pelatihan yang dibagikan belum memberi kuota untuk ' + esc(D.d.me.namaSatker || 'Satker Anda') + '.';
+  const t = AppState.lastSync ? fmtWaktu(new Date(AppState.lastSync).toISOString()) : '-';
+  return '<div class="alert alert-amber kosong-info">' + ic('lock') + '<div><b>BELUM ADA PELATIHAN UNTUK SATKER ANDA</b><span>' + why +
+    '</span><small class="muted" style="display:block;margin-top:4px">Data diperiksa ' + esc(t) + ' WIT · ID Satker Anda: <span class="mono">' + esc(my) + '</span></small></div>' +
+    '<button type="button" class="btn btn-sm" data-recheck>' + ic('refresh') + 'Periksa ulang</button></div>';
+}
+/** Tombol "Periksa ulang" & sinkron otomatis saat formulir dibuka tanpa pelatihan tersedia. */
+async function recheckPelatihan(el, manual) {
+  if (recheckPelatihan.busy) return;
+  recheckPelatihan.busy = true;
+  const b = $('[data-recheck]', el), done = b ? busyBtn(b, 'Memeriksa…') : null;
+  const res = await Data.sync(true);
+  recheckPelatihan.busy = false; if (done && b.isConnected) done();
+  const ada = pelChoices(D.d.me.idSatker).length > 0;
+  if (ada && el.isConnected) {
+    const kosong = !InputPg.batch || !InputPg.batch.rows.some(batchFilled);
+    if (kosong) { InputPg.batch = null; batchBuild(el); }
+    toast('Pelatihan untuk Satker Anda sudah tersedia. Silakan isi peserta.', 'success');
+  } else if (manual) toast(res.success ? 'Belum ada pelatihan yang dibagikan ke Satker Anda.' : res.message, res.success ? 'warn' : 'error');
+  else if (el.isConnected && el._batch) { const k = $('.kosong-info', el); if (k) k.outerHTML = kosongInfo(); }
+}
 
 /** Pelatihan yang bisa dipilih untuk Satker terpilih (sudah dibagikan & Satker mendapat kuota). */
 function pelChoices(satId) {
@@ -257,7 +294,7 @@ function inputBuild(el) {
     '<p class="desc">Daftarkan personel yang diikutkan pelatihan di SPN sesuai kuota yang dibagikan Admin Induk. Lampirkan SPRIN &amp; SPPD (PDF).</p></div>' +
     '<div class="ph-act"><a class="btn" href="#/peserta">' + ic('arrow-left') + 'Data Peserta</a></div></div>' +
     '<div data-failed></div>' +
-    (!tersedia ? '<div class="alert alert-amber">' + ic('lock') + '<div><b>BELUM ADA PELATIHAN UNTUK SATKER ANDA</b>Formulir aktif setelah Admin Induk membagikan pelatihan dan kuota ke Satker Anda, dan selama batas pendaftaran belum lewat.</div></div>' : '') +
+    (!tersedia ? kosongInfo() : '') +
     '<form id="fPeserta" class="fit-form" novalidate autocomplete="off">' +
     // 01 — program dulu agar kuota terlihat sebelum mengisi
     '<section class="card fsec s1"><div class="card-h"><h3><span class="num">01</span>Pelatihan &amp; Satker Pengirim</h3><span class="tag tag-blue">Sesuai kuota</span></div><div class="card-b"><div class="grid g3">' +
@@ -756,7 +793,7 @@ function batchBuild(el) {
     '<p class="desc">Masukkan beberapa peserta sekaligus. Satu SPRIN &amp; SPPD cukup diunggah sekali untuk semua peserta di daftar ini.</p></div>' +
     '<div class="ph-act"><a class="btn" href="#/peserta">' + ic('arrow-left') + 'Data Peserta</a></div></div>' +
     '<div data-failed></div>' +
-    (!tersedia ? '<div class="alert alert-amber">' + ic('lock') + '<div><b>BELUM ADA PELATIHAN UNTUK SATKER ANDA</b>Formulir aktif setelah Admin Induk membagikan pelatihan dan kuota ke Satker Anda, dan selama batas pendaftaran belum lewat.</div></div>' : '') +
+    (!tersedia ? kosongInfo() : '') +
     '<form id="fBatch" class="fit-form batch" novalidate autocomplete="off">' +
     '<section class="card fsec s1"><div class="card-h bh"><h3><span class="num">01</span>Daftar Peserta <span class="tag tag-gray" data-count></span></h3>' +
     '<div class="bdef"><label for="bPel">Pelatihan</label><select id="bPel" class="select">' + batchPelOptions(B.pel, false) + '</select></div></div>' +
@@ -802,6 +839,8 @@ function batchBuild(el) {
     else { const ins = $$('input,select', box), at = ins.indexOf(e.target); if (ins[at + 1]) ins[at + 1].focus(); }
   });
   $('[data-addrow]', el).addEventListener('click', () => batchAdd(el));
+  if (!el._recheckBound) { el._recheckBound = true; el.addEventListener('click', (e) => { if (e.target.closest('[data-recheck]')) recheckPelatihan(el, true); }); }
+  if (!tersedia && Date.now() - AppState.lastSync > 5000) recheckPelatihan(el, false);   // pastikan data kuota terbaru dari server
   $('#bPel', el).addEventListener('change', (e) => {
     const old = B.pel; B.pel = e.target.value; AppState.selPel = B.pel;
     // Baris yang mengikuti pelatihan sebelumnya (atau belum dipilih) ikut berganti
