@@ -122,6 +122,14 @@ function berandaAdmin(el, again) {
   qi.addEventListener('input', debounce((e) => { Beranda.q = e.target.value; Beranda.page = 1; berandaAdmin(el); const n = $('[data-q]', el); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 250));
 }
 
+/** Petugas: pita pengumuman pembukaan diklat (yang belum dibaca ditandai BARU). */
+function berandaPgm() {
+  const list = (D.d.pengumuman || []).slice().sort((a, b) => String(a.Tanggal_Buka || a.Tanggal_Mulai || '9').localeCompare(String(b.Tanggal_Buka || b.Tanggal_Mulai || '9')));
+  if (!list.length) return '';
+  const baru = PgmSeen.baru().length, g = PgmSeen.baru()[0] || list[0], w = pgmWaktu(g);
+  return '<a class="pgm-strip" href="#/pengumuman">' + ic('megaphone') + '<span class="lbl">Pengumuman</span>' + (baru ? '<span class="tag tag-red">' + baru + ' BARU</span>' : '') + pgmChip(g.Kategori) +
+    '<b>' + esc(g.Judul) + '</b>' + (w ? '<span class="c-' + w.c + '">' + esc(w.t) + '</span>' : '') + '<span class="go">' + (list.length > 1 ? 'Lihat ' + list.length + ' pengumuman' : 'Lihat') + ic('arrow-right') + '</span></a>';
+}
 function berandaPetugas(el) {
   const me = D.d.me, mine = D.d.peserta, my = me.idSatker;
   const pels = D.pelSorted().filter((p) => p.Status !== 'Draft');
@@ -133,6 +141,7 @@ function berandaPetugas(el) {
   el.innerHTML =
     '<div class="ph"><div><h1 class="ttl-bar">' + esc(me.namaSatker || 'Satker') + '</h1>' +
     '<p class="desc mono">' + esc(me.polda) + ' · ' + esc((D.sat(my) || {}).Jenis || '') + ' · ID ' + esc(my) + '</p></div></div>' +
+    berandaPgm() +
     '<div class="stats">' +
     '<div class="stat l-blue"><div class="top-l"><span class="lbl">Kuota Diterima</span><span class="si">' + ic('users') + '</span></div><div class="big c-navy">' + totKuota + '<small>orang</small></div><div class="foot"><span>' + aktif.length + ' pelatihan dibagikan</span></div></div>' +
     '<div class="stat l-green"><div class="top-l"><span class="lbl">Peserta Didaftarkan</span><span class="si green">' + ic('check-circle') + '</span></div><div class="big c-green">' + terisi + (totKuota ? ' / ' + totKuota : '') + '</div><div class="foot"><span>' + (totKuota ? 'Terisi ' + pct(terisi, totKuota) + '% dari kuota' : 'Semua pelatihan aktif') + '</span></div></div>' +

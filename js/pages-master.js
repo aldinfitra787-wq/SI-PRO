@@ -172,12 +172,19 @@ const MASTER_TABS = {
             undo: (d) => { const x = d.pelatihan.find((y) => y.ID_Pelatihan === p.ID_Pelatihan); if (x) x.Status = prev; } });
         }
         if (act === 'del') {
-          if (!(await confirmDlg({ danger: true, title: 'Hapus pelatihan?', message: '<b>' + esc(p.Nama_Pelatihan) + '</b> beserta pengaturan kuotanya akan dihapus. Hanya bisa bila belum ada peserta.', okText: 'Hapus' }))) return;
-          if (D.d.peserta.some((x) => x.ID_Pelatihan === p.ID_Pelatihan)) return toast('Pelatihan sudah memiliki peserta. Tandai Selesai saja.', 'error');
-          const idx = D.d.pelatihan.indexOf(p), alok = (D.d.alokasi || []).filter((a) => a.ID_Pelatihan === p.ID_Pelatihan);
-          Data.quick({ action: 'deletePelatihan', data: { ID_Pelatihan: p.ID_Pelatihan }, ok: 'Pelatihan ' + p.Nama_Pelatihan + ' dihapus.', hide: ['pelatihan', 'ID_Pelatihan', p.ID_Pelatihan],
-            apply: (d) => { d.pelatihan = d.pelatihan.filter((x) => x.ID_Pelatihan !== p.ID_Pelatihan); if (d.alokasi) d.alokasi = d.alokasi.filter((a) => a.ID_Pelatihan !== p.ID_Pelatihan); },
-            undo: (d) => { d.pelatihan.splice(Math.min(idx, d.pelatihan.length), 0, p); if (d.alokasi) d.alokasi = d.alokasi.concat(alok); } });
+          // Draft, sudah dibagikan, atau selesai — semua bisa dihapus; peserta ikut terhapus setelah dikonfirmasi
+          const pes = D.d.peserta.filter((x) => x.ID_Pelatihan === p.ID_Pelatihan), nS = Object.keys(D.alok(p.ID_Pelatihan)).length;
+          const msg = '<b>' + esc(p.Nama_Pelatihan) + '</b> (' + esc(STATUS_PEL[p.Status] || p.Status) + ') beserta pengaturan kuota' + (nS ? ' untuk ' + nS + ' Satker' : '') + ' akan dihapus' +
+            (p.Status !== 'Draft' ? ' dan tidak lagi terlihat oleh petugas Satker' : '') + '.' +
+            (pes.length ? '<br><br><span class="c-red"><b>' + pes.length + ' peserta</b> yang sudah didaftarkan beserta berkas SPRIN/SPPD-nya juga ikut terhapus' + (p.Status === 'Selesai' ? ' (termasuk dari Pangkalan Data)' : '') + '.</span>' : '');
+          if (!(await confirmDlg({ danger: true, title: pes.length ? 'Hapus pelatihan & ' + pes.length + ' peserta?' : 'Hapus pelatihan?', message: msg, okText: 'Ya, hapus' }))) return;
+          const idx = D.d.pelatihan.indexOf(p), alok = (D.d.alokasi || []).filter((a) => a.ID_Pelatihan === p.ID_Pelatihan), ids = new Set(pes.map((x) => x.ID_Peserta));
+          ids.forEach((id) => Data.gone.add(id));
+          const res = await Data.quick({ action: 'deletePelatihan', data: { ID_Pelatihan: p.ID_Pelatihan, hapusPeserta: pes.length > 0 }, ok: 'Pelatihan ' + p.Nama_Pelatihan + ' dihapus' + (pes.length ? ' beserta ' + pes.length + ' peserta.' : '.'), hide: ['pelatihan', 'ID_Pelatihan', p.ID_Pelatihan],
+            apply: (d) => { d.pelatihan = d.pelatihan.filter((x) => x.ID_Pelatihan !== p.ID_Pelatihan); if (d.alokasi) d.alokasi = d.alokasi.filter((a) => a.ID_Pelatihan !== p.ID_Pelatihan); d.peserta = d.peserta.filter((x) => !ids.has(x.ID_Peserta)); },
+            undo: (d) => { d.pelatihan.splice(Math.min(idx, d.pelatihan.length), 0, p); if (d.alokasi) d.alokasi = d.alokasi.concat(alok); d.peserta = d.peserta.concat(pes); } });
+          ids.forEach((id) => Data.gone.delete(id));
+          if (res.success && AppState.selPel === p.ID_Pelatihan) AppState.selPel = '';
         }
       });
     }
@@ -190,8 +197,8 @@ const MASTER_TABS = {
       const acts = p.Status === 'Draft'
         ? btn('kuota', p.ID_Pelatihan, 'act-edit', 'Atur Kuota', 'users') + btn('bagikan', p.ID_Pelatihan, 'btn-primary', 'Bagikan', 'send') + btn('edit', p.ID_Pelatihan, 'act-view', 'Edit') + (n ? '' : btn('del', p.ID_Pelatihan, 'act-del', 'Hapus'))
         : p.Status === 'Aktif'
-          ? btn('kuota', p.ID_Pelatihan, 'act-edit', 'Kuota', 'users') + (ns ? btn('kirim', p.ID_Pelatihan, 'act-wa', 'Kirim Info', 'message') : '') + btn('edit', p.ID_Pelatihan, 'act-view', 'Edit') + btn('selesai', p.ID_Pelatihan, 'act-del', 'Selesai')
-          : btn('edit', p.ID_Pelatihan, 'act-view', 'Edit') + btn('aktif', p.ID_Pelatihan, 'act-wa', 'Buka Lagi');
+          ? btn('kuota', p.ID_Pelatihan, 'act-edit', 'Kuota', 'users') + (ns ? btn('kirim', p.ID_Pelatihan, 'act-wa', 'Info', 'message') : '') + btn('edit', p.ID_Pelatihan, 'act-view', 'Edit') + btn('selesai', p.ID_Pelatihan, 'act-done', 'Selesai') + btn('del', p.ID_Pelatihan, 'act-del', 'Hapus', 'trash')
+          : btn('edit', p.ID_Pelatihan, 'act-view', 'Edit') + btn('aktif', p.ID_Pelatihan, 'act-wa', 'Buka Lagi') + btn('del', p.ID_Pelatihan, 'act-del', 'Hapus', 'trash');
       return '<tr><td class="main"><div class="nm">' + esc(p.Nama_Pelatihan) + '</div><div class="sub"><b class="kat-mini">' + esc(p.Kategori || 'Prolat') + '</b> · ' + esc(p.ID_Pelatihan) + ' · ' + esc(p.Lokasi || 'SPN Polda Papua Barat') + (p.Keterangan ? ' · ' + esc(p.Keterangan) : '') + '</div></td>' +
         '<td data-l="Pelaksanaan" class="mono-n" style="font-size:13px;white-space:nowrap">' + fmtTgl(p.Tanggal_Mulai) + ' –<br>' + fmtTgl(p.Tanggal_Selesai) + '</td>' +
         '<td data-l="Batas daftar" class="mono-n" style="font-size:13px">' + (p.Batas_Kirim ? fmtTgl(p.Batas_Kirim) + (lewat && p.Status === 'Aktif' ? ' <span class="tag tag-gray">LEWAT</span>' : '') : '<span class="c-red">Belum diisi</span>') + '</td>' +

@@ -4,6 +4,7 @@
 'use strict';
 const NAV = [
   { p: 'beranda', t: 'Beranda', i: 'layout-grid' },
+  { p: 'pengumuman', t: 'Pengumuman', i: 'megaphone' },
   { p: 'input', t: 'Input Peserta', i: 'user-plus', petugas: true },
   { p: 'peserta', t: 'Data Peserta', i: 'folder-open' },
   { p: 'rekap', t: 'Rekapitulasi', i: 'chart', admin: true },
@@ -23,7 +24,7 @@ const Layout = {
       '<div class="sb-brand"><div class="sb-logo img"><img src="img/logo-96.png" alt="Logo"></div><div><b>SI-PRO</b></div></div>' +
       '<div class="sb-sec">MODUL UTAMA<span class="tag">' + (admin ? 'ADMIN' : 'SATKER') + '</span></div>' +
       '<nav class="sb-nav">' + NAV.filter((n) => (!n.admin || admin) && (!n.petugas || !admin)).map((n) => n.div ? '<div class="sb-div"></div>' :
-        '<a href="#/' + n.p + '" data-nav="' + n.p + '" title="' + n.t + '">' + ic(n.i) + '<span>' + n.t + '</span>' + (n.p === 'belum' ? '<span class="cnt" id="navBelum" hidden></span><span class="adm" id="navBelumAdm">ADM</span>' : '') + (n.admin && n.p !== 'belum' ? '<span class="adm">ADM</span>' : '') + '</a>').join('') + '</nav>' +
+        '<a href="#/' + n.p + '" data-nav="' + n.p + '" title="' + n.t + '">' + ic(n.i) + '<span>' + n.t + '</span>' + (n.p === 'belum' ? '<span class="cnt" id="navBelum" hidden></span><span class="adm" id="navBelumAdm">ADM</span>' : '') + (n.p === 'pengumuman' ? '<span class="cnt" id="navPgm" hidden></span>' : '') + (n.admin && n.p !== 'belum' ? '<span class="adm">ADM</span>' : '') + '</a>').join('') + '</nav>' +
       '</aside><div class="sb-backdrop" data-close-nav></div>' +
       '<div class="main">' +
       '<header class="top"><button class="btn btn-ghost btn-icon burger" id="burger" aria-label="Buka menu">' + ic('menu') + '</button>' +
@@ -76,6 +77,7 @@ const Layout = {
       const n = pl && pl.Status === 'Aktif' ? D.belum(pid).length : 0;
       const b = $('#navBelum'), ba = $('#navBelumAdm'); if (ba) ba.hidden = !!n; if (b) { b.hidden = !n; b.textContent = n; b.title = n + ' Satker belum mengirim (' + D.pelNama(D.defaultPel()) + ')'; }
     }
+    const np = $('#navPgm'); if (np && window.PgmSeen) { const n = isAdmin() ? 0 : PgmSeen.baru().length; np.hidden = !n; np.textContent = n; np.title = n + ' pengumuman baru'; }
     const s = $('#dbSync'); if (s) s.textContent = AppState.lastSync ? 'SYNC ' + fmtWaktu(new Date(AppState.lastSync).toISOString()).split(' ').pop() : '—';
   },
   syncPill() {

@@ -383,17 +383,28 @@ function pkTanggal(v) {
 }
 /** Kolom Kategori kosong → tebak dari nama diklat (sama seperti server). */
 function pkTebak(n) { n = String(n || '').toLowerCase(); return /diktuk|pembentukan|bintara|tamtama/.test(n) ? 'Diktukba' : /dikbangspes|pengembangan spesial|spesialisasi|kejuruan/.test(n) ? 'Dikbangspes' : ''; }
-function pkSiapkan(raw, katDefault) {
+/**
+ * Siapkan baris impor. j = jenis pelatihan terpilih { kat, nama, tahun, mulai, selesai, lokasi } → SEMUA baris
+ * dicatat untuk jenis itu (kolom Kategori/Nama Diklat di berkas diabaikan). Tanpa jenis → ikuti kolom berkas.
+ */
+function pkSiapkan(raw, katDefault, j) {
   const satByName = {}; D.d.satker.forEach((s) => { satByName[s.Nama_Satker.toLowerCase()] = s; });
   const ada = new Set(pkAll().map(pkKunci)), lihat = new Set();
   const siap = [], salah = []; let dobel = 0;
   raw.forEach((x) => {
     const kRaw = String(x.Kategori || '').trim().toLowerCase();
     const o = Object.assign({}, x, {
-      Kategori: KAT_NAMA.find((k) => k.toLowerCase() === kRaw) || (kRaw ? x.Kategori : pkTebak(x.Nama_Diklat) || katDefault),
+      Kategori: j ? j.kat : KAT_NAMA.find((k) => k.toLowerCase() === kRaw) || (kRaw ? x.Kategori : pkTebak(x.Nama_Diklat) || katDefault),
       NRP_NIP: pkNrp(x.NRP_NIP), Pangkat: String(x.Pangkat || '').toUpperCase(),
       Tanggal_Mulai: pkTanggal(x.Tanggal_Mulai), Tanggal_Selesai: pkTanggal(x.Tanggal_Selesai)
     });
+    if (j) {
+      o.Nama_Diklat = j.nama;
+      if (j.tahun) o.Tahun = j.tahun;
+      if (!o.Tanggal_Mulai && j.mulai) o.Tanggal_Mulai = j.mulai;
+      if (!o.Tanggal_Selesai && j.selesai) o.Tanggal_Selesai = j.selesai;
+      if (!o.Lokasi && j.lokasi) o.Lokasi = j.lokasi;
+    }
     o.Tahun = String(o.Tahun || '').replace(/\D/g, '').slice(0, 4) || (o.Tanggal_Selesai || o.Tanggal_Mulai || '').slice(0, 4);
     const s = satByName[String(o.Satker || '').toLowerCase()];
     if (s) { o.ID_Satker = s.ID_Satker; o.Jenis_Satker = s.Jenis; o.Polda = s.Polda; }
@@ -404,36 +415,83 @@ function pkSiapkan(raw, katDefault) {
   });
   return { siap, salah, dobel };
 }
-function pkTemplate() {
-  const H = ['KATEGORI', 'NAMA DIKLAT', 'TAHUN', 'TANGGAL MULAI', 'TANGGAL SELESAI', 'TEMPAT', 'NAMA', 'NRP / NIP', 'PANGKAT', 'JABATAN', 'SATKER / POLRES', 'POLDA', 'KETERANGAN'];
+/** Daftar jenis pelatihan per kategori: pelatihan di aplikasi + nama diklat yang sudah ada di Pangkalan Data. */
+function pkJenisList(kat) {
+  const out = [], seen = new Set();
+  D.pelSorted().filter((p) => (p.Kategori || 'Prolat') === kat).forEach((p) => {
+    const key = p.Nama_Pelatihan.toLowerCase(); if (seen.has(key)) return; seen.add(key);
+    out.push({ v: 'P:' + p.ID_Pelatihan, nama: p.Nama_Pelatihan, tahun: String(p.Tanggal_Selesai || p.Tanggal_Mulai || '').slice(0, 4), mulai: p.Tanggal_Mulai, selesai: p.Tanggal_Selesai, lokasi: p.Lokasi, g: 'Pelatihan di SI-PRO' });
+  });
+  Array.from(new Set(pkAll().filter((r) => r.Kategori === kat && !r.app).map((r) => r.Nama_Diklat))).sort((a, b) => a.localeCompare(b, 'id')).forEach((n) => {
+    const key = n.toLowerCase(); if (seen.has(key)) return; seen.add(key);
+    out.push({ v: 'N:' + n, nama: n, g: 'Sudah ada di Pangkalan Data' });
+  });
+  return out;
+}
+function pkTemplate(j) {
   const t = (v, s) => ({ v, s });
+  const H = j ? ['NAMA', 'NRP / NIP', 'PANGKAT', 'JABATAN', 'SATKER / POLRES', 'POLDA', 'KETERANGAN']
+    : ['KATEGORI', 'NAMA DIKLAT', 'TAHUN', 'TANGGAL MULAI', 'TANGGAL SELESAI', 'TEMPAT', 'NAMA', 'NRP / NIP', 'PANGKAT', 'JABATAN', 'SATKER / POLRES', 'POLDA', 'KETERANGAN'];
+  const nrpCol = H.indexOf('NRP / NIP'), last = XLSX.col(H.length - 1);
+  const contoh = j ? ['Contoh Nama Personel', t('95010123', 7), 'BRIPKA', 'Banit Reskrim', 'Polres Manokwari', 'Polda Papua Barat', 'Hapus baris contoh ini']
+    : ['Diktukba', 'Diktukba Polri Gelombang I', 2015, '02/03/2015', '30/09/2015', 'SPN Polda Papua Barat', 'Contoh Nama Personel', t('95010123', 7), 'BRIPKA', 'Banit Reskrim', 'Polres Manokwari', 'Polda Papua Barat', 'Hapus baris contoh ini'];
   const rows = [[t('TEMPLATE IMPOR PANGKALAN DATA PENDIDIKAN DAN PELATIHAN — SI-PRO', 1)],
-    [t('Isi mulai baris 4. Kategori: Diktukba / Dikbangspes / Prolat. Kolom NRP / NIP sudah berformat teks (8 atau 18 digit). Tanggal boleh kosong; format 31/12/2024.', 3)],
-    [], H.map((h) => t(h, 4)),
-    ['Diktukba', 'Diktukba Polri Gelombang I', 2015, '02/03/2015', '30/09/2015', 'SPN Polda Papua Barat', 'Contoh Nama Personel', t('95010123', 7), 'BRIPKA', 'Banit Reskrim', 'Polres Manokwari', 'Polda Papua Barat', 'Hapus baris contoh ini']];
-  for (let i = 0; i < 400; i++) rows.push(['', '', '', '', '', '', '', t('', 7)]);
-  downloadBlob(XLSX.build([{ name: 'Pangkalan Data', rows, cols: [14, 34, 9, 15, 15, 24, 30, 21, 14, 26, 28, 24, 22], freeze: 4, heights: { 0: 24, 1: 32, 3: 28 }, merges: ['A1:M1', 'A2:M2'] }]), 'Template_Impor_Pangkalan_Data_SI-PRO.xlsx');
+    [t(j ? 'Jenis pelatihan: ' + j.kat.toUpperCase() + ' — ' + j.nama + (j.tahun ? ' (' + j.tahun + ')' : '') + '. Isi daftar personel mulai baris 4. Kolom NRP / NIP berformat teks (8 atau 18 digit).'
+      : 'Isi mulai baris 4. Kategori: Diktukba / Dikbangspes / Prolat. Kolom NRP / NIP sudah berformat teks (8 atau 18 digit). Tanggal boleh kosong; format 31/12/2024.', 3)],
+    [], H.map((h) => t(h, 4)), contoh];
+  for (let i = 0; i < 400; i++) { const r = H.map(() => ''); r[nrpCol] = t('', 7); rows.push(r); }
+  const W = j ? [32, 21, 14, 28, 30, 24, 24] : [14, 34, 9, 15, 15, 24, 30, 21, 14, 26, 28, 24, 22];
+  const slug = j ? '_' + String(j.nama).replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) : '';
+  downloadBlob(XLSX.build([{ name: 'Pangkalan Data', rows, cols: W, freeze: 4, heights: { 0: 24, 1: 34, 3: 28 }, merges: ['A1:' + last + '1', 'A2:' + last + '2'] }]), 'Template_Impor_Pangkalan_Data' + slug + '.xlsx');
 }
 function pkImport() {
   const st = { siap: [], salah: [], dobel: 0, nama: '' };
   const m = modal({ title: 'Impor Riwayat dari Excel / CSV', icon: 'upload', cls: 'wide', sticky: true, noFocus: true,
-    body: '<div class="grid g2"><div class="field"><label>Kategori bawaan</label><select class="select" data-kd>' + KATEGORI.map((k) => '<option value="' + k.k + '"' + (k.k === PangkalanPg.kat ? ' selected' : '') + '>' + k.k + ' — ' + k.t + '</option>').join('') + '</select><span class="hint">Dipakai bila kolom Kategori kosong &amp; tidak dapat ditebak dari nama diklat</span></div>' +
-      '<div class="field"><label>Template</label><button type="button" class="btn" data-tpl>' + ic('download') + 'Unduh Template Excel</button><span class="hint">Kolom: Kategori, Nama Diklat, Tahun, Nama, NRP/NIP, Pangkat, Jabatan, Satker/Polres, …</span></div></div>' +
+    body: '<div class="pk-imp-g"><div class="field"><label>Kategori<span class="req">*</span></label><select class="select" data-kd>' + KATEGORI.map((k) => '<option value="' + k.k + '"' + (k.k === PangkalanPg.kat ? ' selected' : '') + '>' + k.k + ' — ' + k.t + '</option>').join('') + '</select></div>' +
+      '<div class="field"><label>Jenis pelatihan</label><select class="select" data-jp></select></div>' +
+      '<div class="field"><label>Tahun</label><input class="input mono" data-th inputmode="numeric" maxlength="4" placeholder="2024"></div></div>' +
+      '<div class="field" data-baru hidden><label>Nama jenis pelatihan baru<span class="req">*</span></label><input class="input" data-nb placeholder="Mis. Diktukba Polri Gelombang II TA 2015"></div>' +
+      '<p class="hint" data-jh style="margin:6px 0 0"></p>' +
       '<label class="pk-drop" data-drop><input type="file" accept=".xlsx,.csv,text/csv" hidden data-file>' + ic('cloud-upload') + '<b>Pilih atau seret berkas .xlsx / .csv</b><small>Sheet pertama dibaca · maks. 5.000 baris</small></label>' +
       '<div data-prev></div>',
-    foot: '<button class="btn" data-x>Tutup</button><button class="btn btn-navy" data-go disabled>' + ic('save') + 'Simpan ke Pangkalan Data</button>' });
-  const prev = $('[data-prev]', m.el), go = $('[data-go]', m.el), kd = $('[data-kd]', m.el);
-  let raw = [];
+    foot: '<button class="btn" data-tpl style="margin-right:auto">' + ic('download') + 'Unduh Template</button><button class="btn" data-x>Tutup</button><button class="btn btn-navy" data-go disabled>' + ic('save') + 'Simpan ke Pangkalan Data</button>' });
+  const $m = (s) => $(s, m.el);
+  const prev = $m('[data-prev]'), go = $m('[data-go]'), kd = $m('[data-kd]'), jp = $m('[data-jp]'), th = $m('[data-th]'), nb = $m('[data-nb]');
+  let raw = [], opsi = [];
+  const isiJenis = () => {
+    opsi = pkJenisList(kd.value);
+    const grup = (g) => opsi.filter((o) => o.g === g);
+    jp.innerHTML = '<option value="">Ikuti kolom "Nama Diklat" di berkas</option>' +
+      ['Pelatihan di SI-PRO', 'Sudah ada di Pangkalan Data'].map((g) => grup(g).length ? '<optgroup label="' + g + '">' + grup(g).map((o) => '<option value="' + esc(o.v) + '">' + esc(o.nama) + '</option>').join('') + '</optgroup>' : '').join('') +
+      '<option value="__baru">+ Jenis pelatihan baru…</option>';
+  };
+  /** Jenis terpilih → objek; kosong → null (ikuti berkas). */
+  const jenis = () => {
+    const v = jp.value; if (!v) return null;
+    if (v === '__baru') { const n = nb.value.trim().replace(/\s+/g, ' '); return n ? { kat: kd.value, nama: n, tahun: th.value.trim() } : { kat: kd.value, nama: '', tahun: th.value.trim() }; }
+    const o = opsi.find((x) => x.v === v); return o ? { kat: kd.value, nama: o.nama, tahun: th.value.trim() || o.tahun || '', mulai: o.mulai, selesai: o.selesai, lokasi: o.lokasi } : null;
+  };
+  const hint = () => {
+    const j = jenis();
+    $m('[data-baru]').hidden = jp.value !== '__baru';
+    $m('[data-jh]').innerHTML = j
+      ? ic('info') + ' Semua baris dicatat sebagai <b>' + esc(kd.value) + ' — ' + esc(j.nama || '(isi nama jenis)') + '</b>' + (j.tahun ? ' tahun <b>' + esc(j.tahun) + '</b>' : ' (tahun dari kolom Tahun/Tanggal di berkas)') + '. Berkas cukup berisi daftar personel: Nama, NRP/NIP, Pangkat, Jabatan, Satker/Polres.'
+      : ic('info') + ' Jenis &amp; tahun dibaca dari kolom <b>Nama Diklat</b> dan <b>Tahun</b> di setiap baris berkas. Kategori ' + esc(kd.value) + ' dipakai bila kolom Kategori kosong.';
+  };
   const show = () => {
-    const r = pkSiapkan(raw, kd.value); Object.assign(st, r);
+    hint(); if (!raw.length) return;
+    const j = jenis();
+    if (j && !j.nama) { prev.innerHTML = '<div class="alert alert-amber" style="margin-top:12px">' + ic('alert-triangle') + '<div>Isi nama jenis pelatihan baru terlebih dahulu.</div></div>'; go.disabled = true; return; }
+    const r = pkSiapkan(raw, kd.value, j); Object.assign(st, r);
     const perKat = KAT_NAMA.map((k) => { const n = r.siap.filter((x) => x.Kategori === k).length; return n ? k + ' ' + n : ''; }).filter(Boolean).join(' · ');
-    const perJn = JENIS_SATKER.map((j) => j + ' ' + r.siap.filter((x) => x.Jenis_Satker === j).length).join(' · ');
+    const perJn = JENIS_SATKER.map((x) => x + ' ' + r.siap.filter((y) => y.Jenis_Satker === x).length).join(' · ');
     prev.innerHTML = '<div class="pk-sum"><span class="tag tag-gray">' + esc(st.nama) + '</span><span class="tag tag-blue">' + raw.length + ' BARIS</span><span class="tag tag-green">' + r.siap.length + ' SIAP DISIMPAN</span>' +
       (r.dobel ? '<span class="tag tag-amber">' + r.dobel + ' SUDAH ADA</span>' : '') + (r.salah.length ? '<span class="tag tag-red">' + r.salah.length + ' SALAH</span>' : '') + '</div>' +
-      (r.siap.length ? '<p class="hint" style="margin:6px 0">' + esc(perKat) + ' &nbsp;|&nbsp; ' + esc(perJn) + '</p><div class="tbl-wrap pk-pv"><table class="tbl"><thead><tr><th>Baris</th><th>Kategori</th><th>Nama Diklat</th><th>Tahun</th><th>Nama</th><th>NRP / NIP</th><th>Satker / Polres</th></tr></thead><tbody>' +
+      (r.siap.length ? '<p class="hint" style="margin:6px 0">' + esc(perKat) + ' &nbsp;|&nbsp; ' + esc(perJn) + '</p><div class="tbl-wrap pk-pv"><table class="tbl"><thead><tr><th>Baris</th><th>Kategori</th><th>Jenis pelatihan</th><th>Tahun</th><th>Nama</th><th>NRP / NIP</th><th>Satker / Polres</th></tr></thead><tbody>' +
         r.siap.slice(0, 5).map((x) => '<tr><td class="mono-n">' + x._baris + '</td><td>' + esc(x.Kategori) + '</td><td>' + esc(x.Nama_Diklat) + '</td><td class="mono-n">' + esc(x.Tahun) + '</td><td>' + esc(x.Nama) + '</td><td class="mono-n">' + esc(x.NRP_NIP) + '</td><td>' + esc(x.Satker) + ' <span class="tag tag-gray">' + esc(x.Jenis_Satker) + '</span></td></tr>').join('') +
         '</tbody></table></div>' + (r.siap.length > 5 ? '<p class="hint">… dan ' + (r.siap.length - 5) + ' baris lainnya.</p>' : '') : '') +
-      (r.salah.length ? '<div class="alert alert-red" style="margin-top:8px">' + ic('alert-triangle') + '<div><b>Baris yang dilewati karena salah:</b><br>' + r.salah.slice(0, 6).map((x) => 'Baris ' + x.baris + (x.nama ? ' (' + esc(x.nama) + ')' : '') + ': ' + esc(x.pesan)).join('<br>') + (r.salah.length > 6 ? '<br>… ' + (r.salah.length - 6) + ' baris lainnya.' : '') + '</div></div>' : '');
+      (r.salah.length ? '<div class="alert alert-red" style="margin-top:8px">' + ic('alert-triangle') + '<div><b>Baris yang dilewati karena salah:</b><br>' + r.salah.slice(0, 6).map((x) => 'Baris ' + x.baris + (x.nama ? ' (' + esc(x.nama) + ')' : '') + ': ' + esc(x.pesan)).join('<br>') + (r.salah.length > 6 ? '<br>… ' + (r.salah.length - 6) + ' baris lainnya.' : '') +
+        (!j && r.salah.some((x) => /Nama diklat/.test(x.pesan)) ? '<br><br>Tip: pilih <b>Jenis pelatihan</b> di atas bila berkas hanya berisi daftar personel.' : '') + (r.salah.some((x) => /Tahun/.test(x.pesan)) ? '<br>Tip: isi kolom <b>Tahun</b> di atas.' : '') + '</div></div>' : '');
     go.disabled = !r.siap.length;
     go.innerHTML = ic('save') + 'Simpan ' + r.siap.length + ' riwayat';
   };
@@ -453,13 +511,16 @@ function pkImport() {
       raw = res.rows; st.nama = file.name; show();
     } catch (e) { raw = []; go.disabled = true; prev.innerHTML = '<div class="alert alert-red">' + ic('alert-triangle') + '<div>' + esc(e.message || String(e)) + '</div></div>'; }
   };
-  $('[data-file]', m.el).addEventListener('change', (e) => baca(e.target.files[0]));
-  const drop = $('[data-drop]', m.el);
+  isiJenis(); hint();
+  $m('[data-file]').addEventListener('change', (e) => baca(e.target.files[0]));
+  const drop = $m('[data-drop]');
   drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
   drop.addEventListener('dragleave', () => drop.classList.remove('over'));
   drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); baca(e.dataTransfer.files[0]); });
-  kd.addEventListener('change', () => { if (raw.length) show(); });
-  $('[data-tpl]', m.el).addEventListener('click', pkTemplate);
+  kd.addEventListener('change', () => { isiJenis(); show(); });
+  jp.addEventListener('change', () => { const o = opsi.find((x) => x.v === jp.value); if (o && o.tahun) th.value = o.tahun; show(); if (jp.value === '__baru') nb.focus(); });
+  th.addEventListener('input', debounce(show, 250)); nb.addEventListener('input', debounce(show, 250));
+  $m('[data-tpl]').addEventListener('click', () => { const j = jenis(); if (j && !j.nama) return toast('Isi nama jenis pelatihan baru dulu.', 'warn'); pkTemplate(j); });
   go.addEventListener('click', async () => {
     const rows = st.siap.slice(); if (!rows.length) return;
     const done = busyBtn(go, 'Menyimpan…'); m.busy(true);
@@ -473,7 +534,7 @@ function pkImport() {
       PK.set((list) => { res.data.riwayat.forEach((x) => list.push(x)); });
     }
     done(); m.busy(false);
-    if (tambah) { const first = rows[0]; PangkalanPg.kat = first.Kategori; PangkalanPg.jenis = first.Jenis_Satker; PangkalanPg.page = 1; pkRefresh(); }
+    if (tambah) { const first = rows[0]; PangkalanPg.kat = first.Kategori; PangkalanPg.jenis = first.Jenis_Satker; PangkalanPg.diklat = jenis() ? first.Nama_Diklat : ''; PangkalanPg.tahun = ''; PangkalanPg.page = 1; pkRefresh(); }
     if (gagal.length && !tambah) return toast(gagal[0], 'error', 'Impor gagal');
     m.close();
     toast(tambah + ' riwayat masuk Pangkalan Data' + (lewat ? ', ' + lewat + ' sudah ada' : '') + (gagal.length ? ', ' + gagal.length + ' gagal' : '') + '.', gagal.length ? 'warn' : 'success', 'Impor selesai');

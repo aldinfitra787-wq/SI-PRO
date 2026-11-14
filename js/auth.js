@@ -17,7 +17,7 @@ const Auth = {
     return '<main class="login-wrap split">' +
       '<section class="login-hero" aria-label="SI-PRO SPN Polda Papua Barat — Sistem Informasi Pendidikan dan Pelatihan">' +
       '<img src="img/login-hero.jpg" alt="SI-PRO SPN Polda Papua Barat — Sistem Informasi Pendidikan dan Pelatihan" fetchpriority="high" decoding="async"></section>' +
-      '<section class="login-side"><div class="login-box"><div class="login-card"><div class="login-in">' + inner + '</div></div></div></section></main><div class="toasts" id="toasts"></div>';
+      '<section class="login-side"><div class="login-box"><div class="login-card"><div class="login-in">' + inner + '</div></div><div class="lp" id="loginPgm" hidden></div></div></section></main><div class="toasts" id="toasts"></div>';
   },
   head() {
     return '<div class="login-head"><span class="lbl">Portal Otentikasi</span><span class="tag tag-navy">Terbatas</span></div>' +
@@ -52,6 +52,7 @@ const Auth = {
     // Di HP jangan fokus otomatis (keyboard tidak muncul sendiri & layar tidak bergeser)
     if (matchMedia('(min-width: 901px)').matches) $(last ? '#f_password' : '#f_username').focus();
     $('#fLogin').addEventListener('submit', (e) => { e.preventDefault(); this.login(); });
+    if (window.LoginPgm) LoginPgm.load();     // pengumuman pembukaan diklat (tanpa login)
   },
   errBox(msg) { return '<div class="alert alert-red">' + ic('alert-circle') + '<div><b>[!] OTENTIKASI DITOLAK</b><span class="m">' + esc(msg) + '</span></div></div>'; },
   checkGateway() {

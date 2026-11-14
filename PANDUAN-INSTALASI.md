@@ -1,4 +1,4 @@
-# PANDUAN INSTALASI — SI-PRO v1.9
+# PANDUAN INSTALASI — SI-PRO v2.0
 
 Sistem Informasi Pendidikan dan Pelatihan · SPN Polda Papua Barat
 
@@ -15,13 +15,24 @@ Yang Anda terima:
 
 | Berkas | Untuk apa |
 |---|---|
-| `Kode.gs` | Backend. Disalin-tempel ke editor Apps Script (**berubah di v1.9**) |
+| `Kode.gs` | Backend. Disalin-tempel ke editor Apps Script (**berubah di v2.0**) |
 | `appsscript.json` | Manifest Apps Script (zona waktu WIT & izin) |
 | `si-prolat.zip` | Frontend untuk GitHub Pages (isi ZIP = isi repository) |
 | `PANDUAN-INSTALASI.md` | Dokumen ini |
 
 Urutan kerja: **A → C → D**. Total ±30 menit. Login memakai **username + password** (tidak perlu akun Google bagi petugas, tidak perlu Google Cloud Console).
 
+> **Sudah memasang v1.9?** Perbarui **keduanya**: (1) ganti seluruh isi `Kode.gs` → **Deploy → Kelola deployment → ✏️ Edit → Versi: Versi baru → Deploy** (URL tetap sama); (2) ganti isi folder frontend dengan isi `si-prolat.zip`, isi lagi `GAS_URL` di `js/config.js`, lalu `git add .` → `git commit -m "v2.0"` → `git push`. Sheet baru `Pengumuman` dibuat **otomatis** saat aplikasi pertama kali dibuka.
+>
+> **Perubahan v2.0:**
+> - **Pengumuman pembukaan diklat (Diktukba, Dikbangspes, Prolat).** Menu baru **Pengumuman** untuk Admin Induk dan Petugas.
+>   - *Admin Induk:* **Buat Pengumuman** → isi judul, kategori, tanggal pendaftaran dibuka, tanggal pelaksanaan, tempat, isi (persyaratan, kontak, dll.). Bisa **diambil dari pelatihan** yang sudah dibuat (judul, tanggal, tempat, dan Satker berkuota terisi otomatis). Pilih **Dibagikan kepada**: semua Satker & Polres, semua Satker Polda, semua Polres, atau Satker/Polres pilihan. Simpan sebagai *Draft* atau langsung **Bagikan**; setelah dibagikan muncul daftar petugas tiap Satker dengan tombol **WhatsApp** dan **Salin Pesan Massal**. Pengumuman bisa *Tarik* (kembali Draft), *Edit*, dan *Hapus*.
+>   - *Halaman masuk:* pengumuman yang dicentang **Tampilkan di halaman masuk** muncul di bawah formulir masuk (bergantian otomatis, tombol *Lihat semua*), di laptop maupun HP — tetap satu layar tanpa digulir. Yang tampil hanya judul, kategori, tanggal, tempat, dan isi; daftar Satker sasaran tidak ditampilkan.
+>   - *Petugas Satker:* melihat pengumuman yang ditujukan ke Satker-nya di menu **Pengumuman** (penanda **BARU** + angka di menu) dan pita pengumuman di **Beranda**, lengkap dengan hitung mundur ("Pendaftaran dibuka 6 hari lagi"). Bila pengumuman terkait pelatihan yang sudah dibagikan ke Satker-nya, ada tombol **Daftarkan Peserta**.
+>   - Pengumuman otomatis hilang setelah tanggal **Tampil sampai** (atau tanggal selesai pelaksanaan) lewat.
+> - **Hapus pelatihan yang sudah dibagikan / selesai** (Kelola Master → Pelatihan, tombol 🗑 Hapus). Bila pelatihan sudah punya peserta, jendela konfirmasi menyebut jumlahnya; peserta beserta berkas SPRIN/SPPD (yang tidak dipakai peserta lain) ikut terhapus. Tombol *Kirim Info* kini berlabel *Info*.
+> - **Impor Pangkalan Data: menu Jenis pelatihan.** Pilih **Kategori → Jenis pelatihan → Tahun**, lalu unggah berkas yang cukup berisi daftar personel (Nama, NRP/NIP, Pangkat, Jabatan, Satker/Polres). Semua baris dicatat untuk jenis pelatihan tersebut. Pilihan jenis berisi pelatihan di SI-PRO dan nama diklat yang sudah ada di Pangkalan Data, atau **+ Jenis pelatihan baru**. Tombol **Unduh Template** menyesuaikan: bila jenis dipilih, template hanya berisi kolom personel. Pilih *Ikuti kolom "Nama Diklat" di berkas* untuk berkas campuran banyak jenis.
+>
 > **Sudah memasang v1.8?** Perbarui **keduanya**:
 > 1. Ganti seluruh isi `Kode.gs` → **Deploy → Kelola deployment → ✏️ Edit → Versi: Versi baru → Deploy** (URL tetap sama).
 > 2. Ganti isi folder frontend dengan isi `si-prolat.zip`, isi lagi `GAS_URL` di `js/config.js`, lalu `git add .` → `git commit -m "v1.9"` → `git push`.
@@ -267,6 +278,7 @@ Diagnostik kecepatan: tekan F12 → Console → ketik `Perf.table()` untuk melih
 - Tampilan memakai huruf **Arial** dan logo Lemdiklat (berkas `img/`); ikon tab browser memakai logo yang sama.
 - Login memakai username + password (perubahan dari PRD 6.2 yang semula akun Google). Kolom `Email` di sheet `Pengguna` kini opsional, hanya untuk kontak.
 - Kolom tambahan di luar PRD: `Pengguna.Username/Password_Hash/Salt/Wajib_Ganti`, `Pengguna.NRP/No_HP/Jabatan` (kontak PIC), `Satker.Status/Folder_ID/Jenis`, `Pelatihan.Batas_Kirim/Keterangan/Lokasi/Dibagikan_Pada`, `Pengguna.Link_Foto/Foto_Thumb` (foto profil; kolom lama `Peserta.Link_Foto` dibiarkan, tidak dipakai lagi), sheet `Alokasi` (kuota) dan sheet `Log` untuk audit. Kolom lama `Pelatihan.Kuota_Per_Satker` tidak dipakai lagi.
+- Pengumuman (v2.0) disimpan di sheet `Pengumuman` (`ID_Pengumuman, Judul, Kategori, ID_Pelatihan, Isi, Tanggal_Buka, Tanggal_Mulai, Tanggal_Selesai, Lokasi, Sasaran, Satker_Tujuan, Tampil_Login, Status, Tampil_Sampai, …`). Halaman masuk membaca pengumuman tanpa login (data umum saja) dan disimpan di cache server ±10 menit; perubahan lewat aplikasi langsung berlaku.
 - Pangkalan Data (v1.9): riwayat manual/impor disimpan di sheet `Pangkalan_Data` (kolom `ID_Riwayat, Kategori, Nama_Diklat, Tahun, Tanggal_Mulai, Tanggal_Selesai, Lokasi, Nama, NRP_NIP, Pangkat, Jabatan, ID_Satker, Satker, Jenis_Satker, Polda, Keterangan, Sumber, …`). Peserta pelatihan aplikasi **tidak disalin** ke sheet itu — dihitung langsung dari sheet `Peserta` + `Pelatihan` (kolom `Kategori`), sehingga perubahan data peserta otomatis ikut. Kesatuan yang tidak ada di master Satker tetap bisa dicatat (pilih *Lainnya*); jenisnya (Satker Polda/Polres) ditebak dari nama bila tidak diisi. Membaca berkas `.xlsx` memakai fitur bawaan browser terbaru (Chrome/Edge/Firefox/Safari); di browser lama simpan sebagai CSV lalu impor. Maks. 5.000 baris per impor (dikirim per 500 baris).
 - Pengingat ke Satker memakai tautan WhatsApp (`wa.me`) dan teks salin massal — belum ada pengiriman otomatis (Gmail/WA di luar lingkup v1.0).
 - Satu eksekusi Apps Script maksimal 6 menit. Import > ±20.000 baris: jalankan per jenis data (centang satu per satu).

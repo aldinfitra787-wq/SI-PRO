@@ -48,7 +48,7 @@ const Perf = {
 window.Perf = Perf;
 
 // ─── API: timeout, retry baca, reqId idempoten untuk tulis (Prinsip 6 & 8) ───
-const READ_ACTIONS = /^(login|bootstrap|getBerkas|laporan|logs|pangkalan)$/;
+const READ_ACTIONS = /^(login|bootstrap|getBerkas|laporan|logs|pangkalan|pengumumanPublik)$/;
 async function apiOnce(action, data, timeout, reqId) {
   const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), timeout), t0 = performance.now();
   try {
