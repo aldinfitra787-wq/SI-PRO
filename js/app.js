@@ -35,7 +35,7 @@ const Layout = {
     $('#burger').addEventListener('click', () => $('#app').classList.toggle('nav-open'));
     $('[data-close-nav]').addEventListener('click', () => this.closeNav());
     $('#avatarBtn').addEventListener('click', (e) => { e.stopPropagation(); this.userMenu(); });
-    this.avatar(); this.update(); this.syncPill();
+    this.avatar(); this.update(); this.syncPill(); Motion.boot();
   },
   /** Avatar = foto profil (bila ada) atau inisial nama. */
   avatar() {

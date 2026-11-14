@@ -1,4 +1,4 @@
-# PANDUAN INSTALASI — SI-PRO v1.7
+# PANDUAN INSTALASI — SI-PRO v1.8
 
 Sistem Informasi Data Peserta Pelatihan · Polda Papua Barat & Polda Papua Barat Daya
 
@@ -22,6 +22,10 @@ Yang Anda terima:
 
 Urutan kerja: **A → C → D**. Total ±30 menit. Login memakai **username + password** (tidak perlu akun Google bagi petugas, tidak perlu Google Cloud Console).
 
+> **Sudah memasang v1.7?** Cukup perbarui frontend: ganti isi folder frontend dengan isi `si-prolat.zip`, isi lagi `GAS_URL` di `js/config.js`, lalu `git add .` → `git commit -m "v1.8"` → `git push`. `Kode.gs` tidak berubah.
+>
+> **Perubahan v1.8:** gambar halaman masuk diganti (*Selamat Datang Aplikasi SI-PRO*) · animasi elegan: gambar masuk perlahan dengan kilau emas yang melintas berkala, formulir masuk meluncur dari kanan, tombol Masuk berpendar lembut; di dalam aplikasi menu & bilah atas masuk bertahap, kartu/tabel muncul berurutan saat pindah menu, angka statistik menghitung naik, batang progres tumbuh, grafik cincin berputar masuk, jendela dialog & notifikasi muncul halus, efek kilau saat kursor di atas tombol utama. Animasi singkat (≤ 1 detik), hanya saat pindah menu — tidak memperlambat simpan/hapus — dan otomatis dimatikan bila perangkat diatur "kurangi gerakan".
+>
 > **Sudah memasang v1.6?** Perbarui keduanya: (1) ganti seluruh isi `Kode.gs` → **Deploy → Kelola deployment → ✏️ Edit → Versi baru → Deploy**; (2) ganti isi folder frontend dengan isi `si-prolat.zip`, isi lagi `GAS_URL`, lalu `git add .` → `git commit -m "v1.7"` → `git push`. Tidak ada kolom sheet yang berubah.
 >
 > **Perubahan v1.7:**

@@ -1125,3 +1125,100 @@ body, button, input, select, textarea { font-family: Arial, Helvetica, sans-seri
 .fit-form.batch .bshare, .fit-form.batch .bgab { margin-bottom: 10px; padding: 7px 10px; }
 @media (min-width: 1024px) and (min-height: 560px) and (max-height: 760px) { .fit-form.batch .bshare { display: none; } .fit-form.batch .bgab small { display: none; } }
 @media (min-width: 1024px) and (max-width: 1279px) and (min-height: 560px) { .fit-form.batch .bshare { display: none; } .fit-form.batch .bgab small { display: none; } .fit-form.batch { grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); } }
+
+/* =================== v1.8 — Animasi elegan =================== */
+:root { --ease-out: cubic-bezier(.16, 1, .3, 1); --ease-soft: cubic-bezier(.22, .61, .36, 1); }
+@keyframes fade-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slide-in-l { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: none; } }
+@keyframes slide-in-r { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+@keyframes drop-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+@keyframes grow-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes spin-in { from { opacity: 0; transform: rotate(-120deg) scale(.82); } to { opacity: 1; transform: none; } }
+@keyframes pop-in { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes toast-in { from { opacity: 0; transform: translateX(26px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes hero-in { from { opacity: 0; transform: scale(1.07); filter: saturate(.6) brightness(.85); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes sheen { 0% { transform: translateX(-120%) skewX(-18deg); } 22%, 100% { transform: translateX(260%) skewX(-18deg); } }
+@keyframes glow { 0%, 100% { box-shadow: 0 6px 18px rgba(15, 33, 71, .18); } 50% { box-shadow: 0 8px 26px rgba(201, 151, 34, .35); } }
+@keyframes float-y { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+
+/* Halaman: elemen masuk bertahap saat pindah menu (bukan saat data diperbarui) */
+.page { animation: none; }
+.page.pg-in > *, .page.pg-in .fcol > *, .page.pg-in .dash > *, .page.pg-in .rk-grid > *, .page.pg-in .fit-form > *, .page.pg-in .stats > * { animation: fade-up .5s var(--ease-out) both; }
+.page.pg-in > *:nth-child(2), .page.pg-in .stats > *:nth-child(2), .page.pg-in .fcol > *:nth-child(2), .page.pg-in .fit-form > *:nth-child(2) { animation-delay: .05s; }
+.page.pg-in > *:nth-child(3), .page.pg-in .stats > *:nth-child(3), .page.pg-in .fcol > *:nth-child(3), .page.pg-in .fit-form > *:nth-child(3) { animation-delay: .1s; }
+.page.pg-in > *:nth-child(4), .page.pg-in .stats > *:nth-child(4), .page.pg-in .fcol > *:nth-child(4), .page.pg-in .fit-form > *:nth-child(4) { animation-delay: .15s; }
+.page.pg-in > *:nth-child(n+5), .page.pg-in .fcol > *:nth-child(n+5) { animation-delay: .2s; }
+.page.pg-in .dash > *:nth-child(2), .page.pg-in .rk-grid > *:nth-child(2) { animation-name: slide-in-r; animation-delay: .12s; }
+/* Baris tabel: hanya memudar (tanpa geser) agar perhitungan "pas layar" tetap tepat */
+.page.pg-in tbody tr { animation: fade-in .45s var(--ease-soft) both; }
+.page.pg-in tbody tr:nth-child(2) { animation-delay: .03s; } .page.pg-in tbody tr:nth-child(3) { animation-delay: .06s; }
+.page.pg-in tbody tr:nth-child(4) { animation-delay: .09s; } .page.pg-in tbody tr:nth-child(5) { animation-delay: .12s; }
+.page.pg-in tbody tr:nth-child(6) { animation-delay: .15s; } .page.pg-in tbody tr:nth-child(7) { animation-delay: .18s; }
+.page.pg-in tbody tr:nth-child(8) { animation-delay: .21s; } .page.pg-in tbody tr:nth-child(n+9) { animation-delay: .24s; }
+/* Batang progres tumbuh, cincin & donat berputar masuk */
+.page.pg-in .bar > i, .page.pg-in .hbar .bar > i { transform-origin: left center; animation: grow-x .9s var(--ease-out) .15s both; }
+.page.pg-in .donut-wrap svg, .page.pg-in .ring svg { animation: spin-in .9s var(--ease-out) .1s both; }
+.page.pg-in .prog-item, .page.pg-in .hbar, .page.pg-in .mine-row { animation: fade-in .5s var(--ease-soft) both; }
+.page.pg-in .prog-item:nth-child(2), .page.pg-in .hbar:nth-child(2), .page.pg-in .mine-row:nth-child(2) { animation-delay: .06s; }
+.page.pg-in .prog-item:nth-child(n+3), .page.pg-in .hbar:nth-child(n+3), .page.pg-in .mine-row:nth-child(n+3) { animation-delay: .12s; }
+
+/* Masuk aplikasi: menu samping & bilah atas */
+.app.app-in .sb { animation: slide-in-l .6s var(--ease-out) both; }
+.app.app-in .sb-nav a { animation: slide-in-l .5s var(--ease-out) both; }
+.app.app-in .sb-nav a:nth-child(2) { animation-delay: .05s; } .app.app-in .sb-nav a:nth-child(3) { animation-delay: .1s; }
+.app.app-in .sb-nav a:nth-child(4) { animation-delay: .15s; } .app.app-in .sb-nav a:nth-child(n+5) { animation-delay: .2s; }
+.app.app-in .top { animation: drop-in .5s var(--ease-out) .1s both; }
+
+/* Interaksi: halus & cepat */
+.btn { transition: background-color .18s, border-color .18s, color .18s, box-shadow .2s, transform .12s; }
+.btn:active:not(:disabled) { transform: translateY(1px) scale(.985); }
+.btn-primary, .btn-navy, .btn-success, .btn-excel { position: relative; overflow: hidden; }
+.btn-primary::after, .btn-navy::after, .btn-success::after, .btn-excel::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 40%; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .28), transparent); transform: translateX(-160%) skewX(-18deg);
+}
+.btn-primary:hover::after, .btn-navy:hover::after, .btn-success:hover::after, .btn-excel:hover::after { transition: transform .7s var(--ease-soft); transform: translateX(320%) skewX(-18deg); }
+.stat, .def-card, .mine-row, .dl-card { transition: transform .25s var(--ease-out), box-shadow .25s var(--ease-out); }
+.stat:hover, .def-card:hover, .mine-row:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(15, 33, 71, .09); }
+.sb-nav a { transition: background-color .2s, color .2s; }
+.sb-nav a > * { transition: transform .25s var(--ease-out); }
+.sb-nav a:not(.on):hover > .ic, .sb-nav a:not(.on):hover > span:not(.cnt) { transform: translateX(3px); }
+.tbl tbody tr { transition: background-color .15s; }
+.tabs button { transition: color .2s, border-color .25s, background-color .2s; }
+.card { transition: box-shadow .25s; }
+.input, .select { transition: border-color .18s, box-shadow .2s, background-color .18s; }
+.u-ava img, .avatar img { animation: fade-in .4s ease both; }
+
+/* Modal & notifikasi */
+.modal-bg { animation: fade-in .2s ease both; }
+.modal { animation: pop-in .32s var(--ease-out) both; }
+.toast { animation: toast-in .38s var(--ease-out) both; }
+.toast.out { transition: opacity .28s ease, transform .28s ease; opacity: 0; transform: translateX(18px); }
+.menu-pop { animation: drop-in .2s var(--ease-out) both; transform-origin: top right; }
+
+/* Halaman masuk */
+.login-hero { background: linear-gradient(180deg, #011c5f 0%, #01236e 50%, #0b2a6b 51%, #0a1f4f 100%); }
+.login-hero img { animation: hero-in 1.6s var(--ease-out) both; }
+.login-hero::after { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 28%; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 236, 170, .16), rgba(255, 255, 255, .22), rgba(255, 236, 170, .16), transparent);
+  transform: translateX(-120%) skewX(-18deg); animation: sheen 9s var(--ease-soft) 1.4s infinite; }
+.login-wrap.split .login-side { animation: slide-in-r .8s var(--ease-out) .15s both; }
+.login-wrap.split .login-in > * { animation: fade-up .55s var(--ease-out) both; }
+.login-wrap.split .login-in > *:nth-child(2) { animation-delay: .3s; } .login-wrap.split .login-in > *:nth-child(3) { animation-delay: .36s; }
+.login-wrap.split .login-in > *:nth-child(4) { animation-delay: .42s; } .login-wrap.split .login-in > *:nth-child(5) { animation-delay: .48s; }
+.login-wrap.split .login-in > *:nth-child(n+6) { animation-delay: .54s; }
+.login-wrap.split .login-logo { animation: float-y 6s ease-in-out 1.2s infinite; }
+.login-wrap.split [data-go] { animation: glow 3.2s ease-in-out 1.5s infinite; }
+.login-wrap.split .alert { animation: fade-up .35s var(--ease-out) both; }
+@media (max-width: 900px) {
+  .login-hero { background: #011c5f; }
+  .login-wrap.split .login-side { animation: fade-up .6s var(--ease-out) .2s both; }
+}
+
+/* Hormati pengaturan "kurangi gerakan" di perangkat */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; animation-delay: 0s !important; transition-duration: .01ms !important; }
+  .login-hero::after { display: none; }
+}
+.login-wrap.split { gap: 0; }

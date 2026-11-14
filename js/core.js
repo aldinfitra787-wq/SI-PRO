@@ -187,6 +187,7 @@ const Router = {
     this.cur = name; this.param = param;
     if (fresh || changed || el._rev !== AppState.rev) { def.render(el, param, { fresh, changed }); el._rev = AppState.rev; }
     if (changed) { window.scrollTo(0, 0); if (def.onShow) def.onShow(el, param); }
+    if (changed || fresh) Motion.enter(el);
     Layout.setActive(name, def); Layout.update();
     Layout.closeNav();
   },
@@ -200,6 +201,42 @@ const Router = {
 };
 addEventListener('hashchange', () => Router.route());
 
+// ─── Animasi halus (elegan, singkat, tidak menahan interaksi) ───────────────
+const Motion = {
+  reduce: matchMedia('(prefers-reduced-motion: reduce)'),
+  off() { return this.reduce.matches; },
+  /** Halaman tampil: elemen masuk bertahap + angka statistik menghitung naik. Hanya saat pindah menu. */
+  enter(el) {
+    if (this.off() || !el) return;
+    el.classList.remove('pg-in'); void el.offsetWidth; el.classList.add('pg-in');
+    clearTimeout(el._pgT); el._pgT = setTimeout(() => el.classList.remove('pg-in'), 1100);
+    requestAnimationFrame(() => this.count(el));
+  },
+  /** Hitung naik untuk angka di kartu statistik (mis. 128, 12 / 31, 85%). */
+  count(root) {
+    $$('.stat .big, .def-card .n', root).forEach((b) => {
+      const node = Array.from(b.childNodes).find((n) => n.nodeType === 3 && /\d/.test(n.nodeValue));
+      if (!node || node._counting) return;
+      const m = node.nodeValue.match(/^(\D*)(\d[\d.]*)(.*)$/s); if (!m) return;
+      const target = parseInt(m[2].replace(/\./g, ''), 10); if (!target || target > 1e7) return;
+      const t0 = performance.now(), dur = Math.min(900, 380 + target * 6);
+      node._counting = true;
+      const step = (t) => {
+        const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+        node.nodeValue = m[1] + Math.round(target * e).toLocaleString('id-ID') + m[3];
+        if (k < 1 && node.isConnected) requestAnimationFrame(step); else { node.nodeValue = m[1] + m[2] + m[3]; node._counting = false; }
+      };
+      requestAnimationFrame(step);
+    });
+  },
+  /** Masuk aplikasi pertama kali setelah login. */
+  boot() {
+    if (this.off()) return;
+    const app = $('.app'); if (!app) return;
+    app.classList.add('app-in'); setTimeout(() => app.classList.remove('app-in'), 1200);
+  }
+};
+
 // ─── UI: toast, modal, konfirmasi ────────────────────────────────────────────
 function toast(message, type, title) {
   type = type || 'success';
@@ -209,7 +246,7 @@ function toast(message, type, title) {
   el.className = 'toast ' + type; el.setAttribute('role', type === 'error' ? 'alert' : 'status');
   el.innerHTML = ic(icon) + '<div>' + (title ? '<b>' + esc(title) + '</b>' : '') + esc(message) + '</div>';
   host.appendChild(el);
-  setTimeout(() => { el.style.transition = 'opacity .3s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 320); }, type === 'error' ? 6500 : 3800);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 320); }, type === 'error' ? 6500 : 3800);
 }
 function modal(o) {
   const bg = document.createElement('div');
