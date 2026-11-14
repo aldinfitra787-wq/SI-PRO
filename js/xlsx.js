@@ -1,5 +1,5 @@
 /* =========================================================================
-   SI-PRO — Penulis berkas Excel (.xlsx) mandiri tanpa pustaka luar.
+   SI-PRO — Penulis & pembaca berkas Excel (.xlsx) mandiri tanpa pustaka luar.
    Mendukung: beberapa sheet, judul gabung sel, header berwarna, garis tepi,
    lebar kolom, baris beku, filter otomatis, cetak A4 landscape muat 1 halaman lebar.
    ========================================================================= */
@@ -158,5 +158,74 @@ const XLSX = (() => {
     ].concat(sheets.map((s, i) => ({ name: 'xl/worksheets/sheet' + (i + 1) + '.xml', data: sheetXml(s) })));
     return zip(files);
   }
-  return { build, ref, col };
+  /* ── PEMBACA .xlsx (untuk impor): sheet pertama → array baris (array nilai) ──
+     Memakai DecompressionStream bawaan browser (Chrome/Edge/Firefox/Safari terbaru). */
+  const unx = (t) => String(t).replace(/&(lt|gt|quot|apos|amp|#\d+|#x[0-9a-f]+);/gi, (m, e) => ({ lt: '<', gt: '>', quot: '"', apos: "'", amp: '&' }[e.toLowerCase()] ||
+    String.fromCodePoint(e[1].toLowerCase() === 'x' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10))));
+  const texts = (xml) => { let out = '', m; const re = /<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g; while ((m = re.exec(xml))) out += m[1]; return unx(out); };
+  async function unzip(buf) {
+    const u8 = new Uint8Array(buf), dv = new DataView(buf), dec = new TextDecoder();
+    let e = -1;
+    for (let i = u8.length - 22; i >= Math.max(0, u8.length - 70000); i--) if (dv.getUint32(i, true) === 0x06054b50) { e = i; break; }
+    if (e < 0) throw new Error('Berkas bukan Excel (.xlsx) yang valid. Simpan ulang sebagai "Excel Workbook (.xlsx)" atau CSV.');
+    const n = dv.getUint16(e + 10, true), ent = {};
+    let p = dv.getUint32(e + 16, true);
+    for (let k = 0; k < n; k++) {
+      const nl = dv.getUint16(p + 28, true), xl = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true);
+      ent[dec.decode(u8.subarray(p + 46, p + 46 + nl))] = { m: dv.getUint16(p + 10, true), size: dv.getUint32(p + 20, true), off: dv.getUint32(p + 42, true) };
+      p += 46 + nl + xl + cl;
+    }
+    return async (name) => {
+      const f = ent[name]; if (!f) return null;
+      const st = f.off + 30 + dv.getUint16(f.off + 26, true) + dv.getUint16(f.off + 28, true), data = u8.subarray(st, st + f.size);
+      if (f.m === 0) return dec.decode(data);
+      if (f.m !== 8 || typeof DecompressionStream === 'undefined') throw new Error('Browser ini belum bisa membaca Excel. Simpan berkas sebagai CSV lalu impor ulang.');
+      const out = await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer();
+      return dec.decode(out);
+    };
+  }
+  const isoDate = (serial) => { const d = new Date(Math.round((serial - 25569) * 864e5)); return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0'); };
+  async function read(buf) {
+    const get = await unzip(buf);
+    const wb = await get('xl/workbook.xml'); if (!wb) throw new Error('Isi berkas Excel tidak dikenali.');
+    const rid = (wb.match(/<sheet\b[^>]*\br:id="([^"]+)"/) || [])[1];
+    const rels = (await get('xl/_rels/workbook.xml.rels')) || '';
+    let target = 'worksheets/sheet1.xml';
+    rels.replace(/<Relationship\b[^>]*>/g, (r) => { if (rid && r.includes('Id="' + rid + '"')) target = (r.match(/Target="([^"]+)"/) || [])[1] || target; return r; });
+    target = target.replace(/^\/?xl\//, '').replace(/^\//, '');
+    const sheet = await get('xl/' + target); if (!sheet) throw new Error('Sheet pertama tidak ditemukan di berkas Excel.');
+    const sst = []; const ss = (await get('xl/sharedStrings.xml')) || '';
+    ss.replace(/<si>([\s\S]*?)<\/si>/g, (m, x) => { sst.push(texts(x.replace(/<rPh[\s\S]*?<\/rPh>/g, ''))); return m; });
+    // gaya tanggal: numFmtId bawaan 14–22, 45–47, atau format kustom berisi d/m/y
+    const sty = (await get('xl/styles.xml')) || '', custom = {}, dateXf = [];
+    sty.replace(/<numFmt\b[^>]*numFmtId="(\d+)"[^>]*formatCode="([^"]*)"/g, (m, id, code) => { custom[id] = unx(code); return m; });
+    const xfs = (sty.match(/<cellXfs[^>]*>([\s\S]*?)<\/cellXfs>/) || [])[1] || '';
+    (xfs.match(/<xf\b[^>]*>/g) || []).forEach((x, i) => {
+      const id = +((x.match(/numFmtId="(\d+)"/) || [])[1] || 0), code = String(custom[id] || '').replace(/"[^"]*"|\[[^\]]*\]/g, '');
+      dateXf[i] = (id >= 14 && id <= 22) || (id >= 45 && id <= 47) || (!!custom[id] && /[dy]/i.test(code) && !/^[#0.,%\s]*$/.test(code));
+    });
+    const rows = [];
+    const cre = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
+    (sheet.match(/<row\b[^>]*>[\s\S]*?<\/row>|<row\b[^>]*\/>/g) || []).forEach((rx) => {
+      const rn = +((rx.match(/<row\b[^>]*\br="(\d+)"/) || [])[1] || rows.length + 1), row = [];
+      let m; cre.lastIndex = 0;
+      while ((m = cre.exec(rx))) {
+        const at = m[1], body = m[2] || '', r = (at.match(/\br="([A-Z]+)\d+"/) || [])[1]; if (!r) continue;
+        let ci = 0; for (const ch of r) ci = ci * 26 + ch.charCodeAt(0) - 64; ci--;
+        const t = (at.match(/\bt="(\w+)"/) || [])[1] || 'n', sIdx = +((at.match(/\bs="(\d+)"/) || [])[1] || 0);
+        const v = (body.match(/<v>([\s\S]*?)<\/v>/) || [])[1];
+        let val = '';
+        if (t === 's') val = sst[+v] || '';
+        else if (t === 'inlineStr') val = texts(body);
+        else if (t === 'str' || t === 'e') val = v == null ? '' : unx(v);
+        else if (t === 'b') val = v === '1' ? 'TRUE' : 'FALSE';
+        else if (v != null && v !== '') { const num = +v; val = dateXf[sIdx] && num > 59 && num < 80000 ? isoDate(num) : (Number.isInteger(num) ? String(num) : String(+num.toPrecision(15))); }
+        row[ci] = val;
+      }
+      rows[rn - 1] = Array.from(row, (x) => (x == null ? '' : x));
+    });
+    return Array.from(rows, (r) => r || []);
+  }
+
+  return { build, ref, col, read };
 })();

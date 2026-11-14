@@ -10,6 +10,7 @@ const NAV = [
   { p: 'belum', t: 'Belum Mengirim', i: 'clipboard-x', admin: true },
   { p: 'laporan', t: 'Cetak Laporan', i: 'printer' },
   { div: true },
+  { p: 'pangkalan', t: 'Pangkalan Data Diklat', i: 'library', admin: true },
   { p: 'master', t: 'Kelola Master', i: 'database', admin: true }
 ];
 

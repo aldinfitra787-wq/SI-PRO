@@ -1,6 +1,6 @@
-# PANDUAN INSTALASI — SI-PRO v1.8
+# PANDUAN INSTALASI — SI-PRO v1.9
 
-Sistem Informasi Data Peserta Pelatihan · Polda Papua Barat & Polda Papua Barat Daya
+Sistem Informasi Pendidikan dan Pelatihan · SPN Polda Papua Barat
 
 Arsitektur:
 
@@ -15,13 +15,33 @@ Yang Anda terima:
 
 | Berkas | Untuk apa |
 |---|---|
-| `Kode.gs` | Backend. Disalin-tempel ke editor Apps Script |
+| `Kode.gs` | Backend. Disalin-tempel ke editor Apps Script (**berubah di v1.9**) |
 | `appsscript.json` | Manifest Apps Script (zona waktu WIT & izin) |
 | `si-prolat.zip` | Frontend untuk GitHub Pages (isi ZIP = isi repository) |
 | `PANDUAN-INSTALASI.md` | Dokumen ini |
 
 Urutan kerja: **A → C → D**. Total ±30 menit. Login memakai **username + password** (tidak perlu akun Google bagi petugas, tidak perlu Google Cloud Console).
 
+> **Sudah memasang v1.8?** Perbarui **keduanya**:
+> 1. Ganti seluruh isi `Kode.gs` → **Deploy → Kelola deployment → ✏️ Edit → Versi: Versi baru → Deploy** (URL tetap sama).
+> 2. Ganti isi folder frontend dengan isi `si-prolat.zip`, isi lagi `GAS_URL` di `js/config.js`, lalu `git add .` → `git commit -m "v1.9"` → `git push`.
+>
+> Saat aplikasi pertama kali dibuka sesudah pembaruan, server **otomatis** menambah sheet baru `Pangkalan_Data` dan kolom `Kategori` di sheet `Pelatihan`. Pelatihan lama diberi kategori otomatis dari namanya (mengandung *Diktuk/Bintara* → Diktukba, *Dikbangspes/Spesialisasi* → Dikbangspes, selain itu Prolat); periksa & ubah bila perlu lewat **Kelola Master → Pelatihan → Edit**.
+>
+> **Perubahan v1.9:**
+> - **Menu baru (Admin Induk): Pangkalan Data Pendidikan dan Pelatihan.** Berisi riwayat personel yang **sudah** melaksanakan **Diktukba**, **Dikbangspes**, dan **Prolat**, dengan tiga kartu kategori (jumlah personel per kategori), pencarian nama/NRP/NIP, filter nama diklat, tahun, dan Polda.
+>   - **Otomatis dari aplikasi:** peserta pelatihan SI-PRO masuk ke Pangkalan Data setelah pelatihannya **Selesai** (atau tanggal selesainya lewat), sesuai **Kategori** pelatihan. Kategori dipilih saat membuat/mengubah pelatihan.
+>   - **Riwayat lama:** tombol **Tambah Riwayat** (satu per satu) atau **Impor Excel** (banyak sekaligus, `.xlsx` atau `.csv`). Unduh template dari jendela impor. Sebelum disimpan tampil pratinjau: baris siap disimpan, yang sudah ada (dilewati), dan yang salah beserta nomor barisnya. Impor aman diulang — data yang sama tidak tercatat dua kali (kunci: NRP + kategori + nama diklat + tahun).
+>   - Tombol **Riwayat** menampilkan seluruh riwayat Diktukba, Dikbangspes, dan Prolat seorang personel dalam satu jendela.
+>   - **Unduh Excel** rapi, urut abjad, mengikuti kategori, kesatuan, dan filter yang aktif.
+>   - Riwayat dari aplikasi tidak bisa diedit/dihapus di sini (ubah lewat Data Peserta); riwayat manual/impor bisa diedit dan dihapus (juga hapus massal).
+> - **Kiriman Satker Polda dan Polres tidak lagi digabung:**
+>   - *Data Peserta* (Admin) punya tab **Satker Polda | Polres** dengan jumlahnya masing-masing; filter Satker mengikuti tab.
+>   - *Unduh Excel* peserta: sheet terpisah per pelatihan **dan** per pengirim (`Satker Polda - …`, `Polres - …`), sheet *Ringkasan* memuat kolom Pengirim.
+>   - *Rekapitulasi*: tabel per Satker dikelompokkan **A. Pengiriman Satker Polda** dan **B. Pengiriman Polres** (lalu per Polda); tabel per jenis pelatihan memakai kolom *Satker Polda* dan *Polres*.
+>   - *Belum Mengirim*: daftar dikelompokkan Satker Polda lalu Polres, termasuk pesan pengingat massal.
+>   - *Laporan PDF* (nominatif, rekap, belum mengirim): bagian **A. Satker Polda** dan **B. Polres** dengan penomoran masing-masing, subtotal per kelompok, dan jumlah keseluruhan.
+>
 > **Sudah memasang v1.7?** Cukup perbarui frontend: ganti isi folder frontend dengan isi `si-prolat.zip`, isi lagi `GAS_URL` di `js/config.js`, lalu `git add .` → `git commit -m "v1.8"` → `git push`. `Kode.gs` tidak berubah.
 >
 > **Perubahan v1.8:** gambar halaman masuk diganti (*Selamat Datang Aplikasi SI-PRO*) · animasi elegan: gambar masuk perlahan dengan kilau emas yang melintas berkala, formulir masuk meluncur dari kanan, tombol Masuk berpendar lembut; di dalam aplikasi menu & bilah atas masuk bertahap, kartu/tabel muncul berurutan saat pindah menu, angka statistik menghitung naik, batang progres tumbuh, grafik cincin berputar masuk, jendela dialog & notifikasi muncul halus, efek kilau saat kursor di atas tombol utama. Animasi singkat (≤ 1 detik), hanya saat pindah menu — tidak memperlambat simpan/hapus — dan otomatis dimatikan bila perangkat diatur "kurangi gerakan".
@@ -247,5 +267,6 @@ Diagnostik kecepatan: tekan F12 → Console → ketik `Perf.table()` untuk melih
 - Tampilan memakai huruf **Arial** dan logo Lemdiklat (berkas `img/`); ikon tab browser memakai logo yang sama.
 - Login memakai username + password (perubahan dari PRD 6.2 yang semula akun Google). Kolom `Email` di sheet `Pengguna` kini opsional, hanya untuk kontak.
 - Kolom tambahan di luar PRD: `Pengguna.Username/Password_Hash/Salt/Wajib_Ganti`, `Pengguna.NRP/No_HP/Jabatan` (kontak PIC), `Satker.Status/Folder_ID/Jenis`, `Pelatihan.Batas_Kirim/Keterangan/Lokasi/Dibagikan_Pada`, `Pengguna.Link_Foto/Foto_Thumb` (foto profil; kolom lama `Peserta.Link_Foto` dibiarkan, tidak dipakai lagi), sheet `Alokasi` (kuota) dan sheet `Log` untuk audit. Kolom lama `Pelatihan.Kuota_Per_Satker` tidak dipakai lagi.
+- Pangkalan Data (v1.9): riwayat manual/impor disimpan di sheet `Pangkalan_Data` (kolom `ID_Riwayat, Kategori, Nama_Diklat, Tahun, Tanggal_Mulai, Tanggal_Selesai, Lokasi, Nama, NRP_NIP, Pangkat, Jabatan, ID_Satker, Satker, Jenis_Satker, Polda, Keterangan, Sumber, …`). Peserta pelatihan aplikasi **tidak disalin** ke sheet itu — dihitung langsung dari sheet `Peserta` + `Pelatihan` (kolom `Kategori`), sehingga perubahan data peserta otomatis ikut. Kesatuan yang tidak ada di master Satker tetap bisa dicatat (pilih *Lainnya*); jenisnya (Satker Polda/Polres) ditebak dari nama bila tidak diisi. Membaca berkas `.xlsx` memakai fitur bawaan browser terbaru (Chrome/Edge/Firefox/Safari); di browser lama simpan sebagai CSV lalu impor. Maks. 5.000 baris per impor (dikirim per 500 baris).
 - Pengingat ke Satker memakai tautan WhatsApp (`wa.me`) dan teks salin massal — belum ada pengiriman otomatis (Gmail/WA di luar lingkup v1.0).
 - Satu eksekusi Apps Script maksimal 6 menit. Import > ±20.000 baris: jalankan per jenis data (centang satu per satu).

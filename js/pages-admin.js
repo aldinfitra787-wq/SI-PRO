@@ -58,7 +58,8 @@ function rekapBody(el) {
     '<div class="bar green"><i style="width:' + kp + '%"></i></div><div class="foot" style="margin-top:12px"><span>Satker ditunjuk yang sudah mengirim</span><span class="tag tag-green">' + sudah + ' / ' + tot + '</span></div></div>' +
     poldaCard('Polda Papua Barat', 'REG-PB', 't-navy', pb, 'navy') + poldaCard('Polda Papua Barat Daya', 'REG-PBD', 't-teal', pbd, 'green') + '</div>';
 
-  const sorted = st.slice().sort((a, b) => (b.kuota ? b.n / b.kuota : b.n) - (a.kuota ? a.n / a.kuota : a.n) || b.n - a.n || a.sat.Nama_Satker.localeCompare(b.sat.Nama_Satker));
+  const jr = (x) => (x.sat.Jenis === 'Polres' ? 1 : 0);
+  const sorted = st.slice().sort((a, b) => jr(a) - jr(b) || (b.kuota ? b.n / b.kuota : b.n) - (a.kuota ? a.n / a.kuota : a.n) || b.n - a.n || a.sat.Nama_Satker.localeCompare(b.sat.Nama_Satker));
   const maxN = Math.max(1, ...sorted.map((x) => Math.max(x.n, x.kuota)));
   const shown = Fit.on() || RekapPg.showAll ? sorted : sorted.slice(0, 6);
   const bars = shown.map((x) => {
@@ -78,35 +79,40 @@ function rekapBody(el) {
 
   const statusTag = (x) => x.status === 'lengkap' ? '<span class="tag tag-green pill"><span class="dot"></span>LENGKAP</span>' : x.status === 'draft' ? '<span class="tag tag-amber pill"><span class="dot"></span>BERKAS KURANG</span>'
     : x.status === 'kurang' ? '<span class="tag tag-amber pill">KURANG ' + (x.kuota - x.n) + ' ORANG</span>' : '<span class="status-bel">' + ic('alert-triangle') + 'BELUM KIRIM</span>';
-  const hier = POLDA.filter((pd) => !wil || wil === pd).map((pd) => {
-    const g = st.filter((x) => x.sat.Polda === pd); if (!g.length) return '';
-    const np = g.reduce((s, x) => s + x.n, 0), kq = g.reduce((s, x) => s + x.kuota, 0);
-    return '<tr class="grp ' + (pd === POLDA[1] ? 'pbd' : '') + '"><td colspan="7">' + ic('folder-open') + ' ' + esc(pd) + ' — ' + np + (kq ? ' / ' + kq : '') + ' personel · ' + g.length + ' Satker ditunjuk<span class="kode tag ' + (pd === POLDA[1] ? 'tag-green' : 'tag-navy') + '">KODE WIL: ' + D.poldaShort(pd) + '</span></td></tr>' +
-      g.map((x) => {
-        const pic = D.pic(x.sat.ID_Satker)[0];
-        const wa = pic && pic.No_HP ? D.waLink(pic.No_HP, D.pesanPengingat(x.sat, pel)) : '';
-        return '<tr><td class="main"><div class="nm">' + esc(x.sat.Nama_Satker) + '</div><div class="sub ' + (x.n ? '' : 'red') + '">' + esc(x.sat.Jenis || '') + ' · ' + esc(x.sat.ID_Satker) + (x.n ? '' : ' · BELUM ADA RESPONS') + '</div></td>' +
-          '<td data-l="Kuota" class="c mono-n">' + (x.kuota || '—') + '</td>' +
-          '<td data-l="Terdaftar" class="c mono-n" style="font-weight:700">' + x.n + '</td>' +
-          '<td data-l="SPRIN/SPPD" class="c ' + (x.n && x.sprin === x.n && x.sppd === x.n ? 'num-ok' : 'num-bad') + '">' + x.sprin + '/' + x.sppd + '<span class="fit-no"> dari ' + x.n + '</span></td>' +
-          '<td data-l="Status" class="c">' + statusTag(x) + '</td><td data-l="Terakhir" class="c mono-n fit-no" style="font-size:13px">' + (x.last ? fmtWaktu(x.last) : '—') + '</td>' +
-          '<td class="acts-td"><div class="acts">' + (x.n ? '<button class="btn btn-xs act-view" data-lihat="' + esc(x.sat.ID_Satker) + '">Lihat</button>' : '') +
-          (x.status === 'belum' || x.status === 'kurang' ? (wa ? '<a class="btn btn-xs act-wa" href="' + wa + '" target="_blank" rel="noopener">' + ic('message') + 'Ingatkan</a>' : '<span class="tag tag-gray">' + (pic ? 'PIC TANPA NO. HP' : 'BELUM ADA PIC') + '</span>') : '') + '</div></td></tr>';
+  // Satker Polda dan Polres ditampilkan dalam kelompok terpisah (tidak digabung), lalu per Polda
+  const satRow = (x) => {
+    const pic = D.pic(x.sat.ID_Satker)[0];
+    const wa = pic && pic.No_HP ? D.waLink(pic.No_HP, D.pesanPengingat(x.sat, pel)) : '';
+    return '<tr><td class="main"><div class="nm">' + esc(x.sat.Nama_Satker) + '</div><div class="sub ' + (x.n ? '' : 'red') + '">' + D.poldaShort(x.sat.Polda) + ' · ' + esc(x.sat.ID_Satker) + (x.n ? '' : ' · BELUM ADA RESPONS') + '</div></td>' +
+      '<td data-l="Kuota" class="c mono-n">' + (x.kuota || '—') + '</td>' +
+      '<td data-l="Terdaftar" class="c mono-n" style="font-weight:700">' + x.n + '</td>' +
+      '<td data-l="SPRIN/SPPD" class="c ' + (x.n && x.sprin === x.n && x.sppd === x.n ? 'num-ok' : 'num-bad') + '">' + x.sprin + '/' + x.sppd + '<span class="fit-no"> dari ' + x.n + '</span></td>' +
+      '<td data-l="Status" class="c">' + statusTag(x) + '</td><td data-l="Terakhir" class="c mono-n fit-no" style="font-size:13px">' + (x.last ? fmtWaktu(x.last) : '—') + '</td>' +
+      '<td class="acts-td"><div class="acts">' + (x.n ? '<button class="btn btn-xs act-view" data-lihat="' + esc(x.sat.ID_Satker) + '">Lihat</button>' : '') +
+      (x.status === 'belum' || x.status === 'kurang' ? (wa ? '<a class="btn btn-xs act-wa" href="' + wa + '" target="_blank" rel="noopener">' + ic('message') + 'Ingatkan</a>' : '<span class="tag tag-gray">' + (pic ? 'PIC TANPA NO. HP' : 'BELUM ADA PIC') + '</span>') : '') + '</div></td></tr>';
+  };
+  const hier = JENIS_SATKER.map((jn, ji) => {
+    const g = st.filter((x) => (x.sat.Jenis === 'Polres' ? 'Polres' : 'Satker Polda') === jn); if (!g.length) return '';
+    const np = g.reduce((s, x) => s + x.n, 0), kq = g.reduce((s, x) => s + x.kuota, 0), kirim = g.filter((x) => x.n).length;
+    return '<tr class="grp ' + (ji ? 'pbd' : '') + '"><td colspan="7">' + ic(jn === 'Polres' ? 'map-pin' : 'building') + ' ' + 'AB'[ji] + '. PENGIRIMAN ' + jn.toUpperCase() + ' — ' + np + (kq ? ' / ' + kq : '') + ' personel · ' + kirim + ' / ' + g.length + ' kesatuan mengirim<span class="kode tag ' + (ji ? 'tag-green' : 'tag-navy') + '">' + (ji ? 'POLRES' : 'SATKER POLDA') + '</span></td></tr>' +
+      POLDA.filter((pd) => !wil || wil === pd).map((pd) => {
+        const gp = g.filter((x) => x.sat.Polda === pd); if (!gp.length) return '';
+        return '<tr class="grp sub"><td colspan="7">' + esc(pd) + ' · ' + gp.reduce((s, x) => s + x.n, 0) + ' personel · ' + gp.length + ' kesatuan</td></tr>' + gp.map(satRow).join('');
       }).join('');
   }).join('');
 
   const perProg = D.pelSorted().map((p) => {
     const s = D.statusSatker(p.ID_Pelatihan, wil), ps = D.pesertaOf(p.ID_Pelatihan, wil);
-    const a = ps.filter((x) => x.Polda_Asal === POLDA[0]).length, b = ps.length - a, k = s.filter((x) => x.n).length, kq = D.totalKuota(p.ID_Pelatihan, wil);
+    const a = ps.filter((x) => jenisPeserta(x) === 'Satker Polda').length, b = ps.length - a, k = s.filter((x) => x.n).length, kq = D.totalKuota(p.ID_Pelatihan, wil);
     return '<tr' + (p.ID_Pelatihan === pelId ? ' class="sel"' : '') + '><td class="main"><div class="nm">' + esc(p.Nama_Pelatihan) + '</div><div class="sub">' + esc(p.ID_Pelatihan) + ' · ' + fmtTgl(p.Tanggal_Mulai) + '</div></td>' +
       '<td data-l="Status">' + D.statusTag(p) + '</td><td data-l="Kuota" class="c mono-n">' + (kq || '—') + '</td>' +
-      '<td data-l="Polda PB" class="c mono-n">' + a + '</td><td data-l="Polda PBD" class="c mono-n">' + b + '</td><td data-l="Total" class="c mono-n" style="font-weight:700">' + ps.length + '</td>' +
+      '<td data-l="Satker Polda" class="c mono-n">' + a + '</td><td data-l="Polres" class="c mono-n">' + b + '</td><td data-l="Total" class="c mono-n" style="font-weight:700">' + ps.length + '</td>' +
       '<td data-l="Satker kirim" class="c mono-n">' + k + ' / ' + s.length + '</td><td class="acts-td"><div class="acts"><button class="btn btn-xs act-view" data-pickpel="' + esc(p.ID_Pelatihan) + '">Pilih</button></div></td></tr>';
   }).join('');
 
   const satTbl = '<table class="tbl rtable fx tbl-rekap"><thead><tr><th>Satker / Polres</th><th class="c">Kuota</th><th class="c">Terdaftar</th><th class="c">SPRIN / SPPD</th><th class="c">Status</th><th class="c fit-no">Terakhir Kirim</th><th class="r">Aksi</th></tr></thead><tbody>' +
     (hier || '<tr><td colspan="7"><div class="empty">Belum ada Satker yang ditunjuk untuk pelatihan ini.</div></td></tr>') + '</tbody></table>';
-  const progTbl = '<table class="tbl rtable fx tbl-prog"><thead><tr><th>Program</th><th>Status</th><th class="c">Kuota</th><th class="c">Polda PB</th><th class="c">Polda PBD</th><th class="c">Total</th><th class="c">Satker Kirim</th><th class="r"></th></tr></thead><tbody>' + perProg + '</tbody></table>';
+  const progTbl = '<table class="tbl rtable fx tbl-prog"><thead><tr><th>Program</th><th>Status</th><th class="c">Kuota</th><th class="c">Satker Polda</th><th class="c">Polres</th><th class="c">Total</th><th class="c">Satker Kirim</th><th class="r"></th></tr></thead><tbody>' + perProg + '</tbody></table>';
   const isSat = RekapPg.tbl !== 'prog';
   body.innerHTML = stats +
     '<div class="rk-grid fill">' +
@@ -124,7 +130,7 @@ function rekapBody(el) {
 }
 
 function rekapCsv() {
-  const pelId = D.defaultPel(), st = D.statusSatker(pelId, RekapPg.wil);
+  const pelId = D.defaultPel(), st = D.statusSatker(pelId, RekapPg.wil).slice().sort((a, b) => (a.sat.Jenis === 'Polres') - (b.sat.Jenis === 'Polres'));
   downloadCsv(st, [
     { label: 'Polda', get: (x) => x.sat.Polda }, { label: 'Jenis', get: (x) => x.sat.Jenis }, { label: 'ID_Satker', get: (x) => x.sat.ID_Satker }, { label: 'Satker', get: (x) => x.sat.Nama_Satker },
     { label: 'Pelatihan', get: () => D.pelNama(pelId) }, { label: 'Kuota', get: 'kuota' }, { label: 'Terdaftar', get: 'n' }, { label: 'SPRIN', get: 'sprin' }, { label: 'SPPD', get: 'sppd' },
@@ -134,7 +140,10 @@ function rekapCsv() {
 
 /* ─────────────────────────── BELUM MENGIRIM ─────────────────────────── */
 const BelumPg = { q: '', wil: '', mode: 'belum' };
-function belumList(pelId) { return BelumPg.mode === 'kurang' ? D.kurang(pelId, BelumPg.wil) : D.belum(pelId, BelumPg.wil); }
+function belumList(pelId) {
+  const l = BelumPg.mode === 'kurang' ? D.kurang(pelId, BelumPg.wil) : D.belum(pelId, BelumPg.wil);
+  return l.slice().sort((a, b) => (a.sat.Jenis === 'Polres') - (b.sat.Jenis === 'Polres'));   // Satker Polda dulu, lalu Polres (terpisah)
+}
 registerPage('belum', {
   title: 'Belum Mengirim', admin: true,
   render(el) {
@@ -163,8 +172,8 @@ registerPage('belum', {
         if (e.target.closest('[data-copyall]')) {
           const pel = D.pel(D.defaultPel()), list = belumList(pel.ID_Pelatihan);
           const txt = 'PENGINGAT PENDAFTARAN PESERTA — ' + pel.Nama_Pelatihan + ' (' + (pel.Lokasi || 'SPN Polda Papua Barat') + ')\n' +
-            (BelumPg.mode === 'kurang' ? 'Satker yang kuotanya belum terpenuhi:\n' : 'Satker yang belum mendaftarkan peserta:\n') +
-            list.map((x, i) => (i + 1) + '. ' + x.sat.Nama_Satker + (x.kuota ? ' — terdaftar ' + x.n + ' dari kuota ' + x.kuota : '')).join('\n') +
+            (BelumPg.mode === 'kurang' ? 'Kesatuan yang kuotanya belum terpenuhi:\n' : 'Kesatuan yang belum mendaftarkan peserta:\n') +
+            JENIS_SATKER.map((j) => { const g = list.filter((x) => (x.sat.Jenis === 'Polres' ? 'Polres' : 'Satker Polda') === j); return g.length ? '\n' + j.toUpperCase() + ':\n' + g.map((x, i) => (i + 1) + '. ' + x.sat.Nama_Satker + (x.kuota ? ' — terdaftar ' + x.n + ' dari kuota ' + x.kuota : '')).join('\n') : ''; }).join('\n') +
             '\n\nMohon segera mendaftarkan peserta beserta SPRIN & SPPD melalui aplikasi SI-PRO' + (pel.Batas_Kirim ? ' paling lambat ' + fmtTgl(pel.Batas_Kirim, true) + ' pukul 23:59 WIT' : '') + '.';
           (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => toast('Pesan pengingat disalin. Tempel di grup WhatsApp/Telegram.', 'success')).catch(() => modal({ title: 'Salin pesan pengingat', icon: 'copy', body: '<textarea class="input" rows="12" readonly>' + esc(txt) + '</textarea>' }));
         }
@@ -218,10 +227,13 @@ function belumTable(el) {
   const pel = D.pel(D.defaultPel()); if (!pel || !$('[data-rows]', el)) return;
   const q = BelumPg.q.toLowerCase();
   const list = belumList(pel.ID_Pelatihan).filter((x) => !q || (x.sat.Nama_Satker + ' ' + D.pic(x.sat.ID_Satker).map((u) => u.Nama).join(' ')).toLowerCase().includes(q));
-  $('[data-rows]', el).innerHTML = list.length ? list.map((x, i) => {
+  let no = 0, cur = '';
+  $('[data-rows]', el).innerHTML = list.length ? list.map((x) => {
+    const jn = x.sat.Jenis === 'Polres' ? 'Polres' : 'Satker Polda', head = jn !== cur ? (cur = jn, no = 0, '<tr class="grp' + (jn === 'Polres' ? ' pbd' : '') + '"><td colspan="8">' + ic(jn === 'Polres' ? 'map-pin' : 'building') + ' ' + jn.toUpperCase() + ' — ' + list.filter((y) => (y.sat.Jenis === 'Polres' ? 'Polres' : 'Satker Polda') === jn).length + ' kesatuan</td></tr>') : '';
+    const i = no++;
     const pics = D.pic(x.sat.ID_Satker), u = pics[0];
     const wa = u && u.No_HP ? D.waLink(u.No_HP, D.pesanPengingat(x.sat, pel)) : '';
-    return '<tr><td class="no no-m">' + String(i + 1).padStart(2, '0') + '</td><td data-l="Polda">' + D.poldaChip(x.sat.Polda, true) + '</td>' +
+    return head + '<tr><td class="no no-m">' + String(i + 1).padStart(2, '0') + '</td><td data-l="Polda">' + D.poldaChip(x.sat.Polda, true) + '</td>' +
       '<td class="main"><div class="nm" style="display:flex;gap:8px;align-items:center">' + ic('building') + esc(x.sat.Nama_Satker) + '</div><div class="sub" style="margin-left:26px">' + esc(x.sat.Jenis || '') + ' · ' + esc(x.sat.ID_Satker) + '</div></td>' +
       '<td data-l="Kuota" class="c mono-n" style="font-weight:700">' + (x.kuota || '—') + '</td><td data-l="Terdaftar" class="c mono-n ' + (x.n ? 'c-amber' : 'c-red') + '" style="font-weight:700">' + x.n + '</td>' +
       '<td data-l="PIC">' + (u ? '<div class="nm">' + esc(u.Nama) + '</div><div class="sub">' + (u.NRP ? 'NRP. ' + esc(u.NRP) : '@' + esc(u.Username)) + (u.Jabatan ? ' · ' + esc(u.Jabatan) : '') + (pics.length > 1 ? ' · +' + (pics.length - 1) + ' petugas' : '') + '</div>' : '<span class="tag tag-amber">BELUM ADA AKUN PETUGAS</span>') + '</td>' +

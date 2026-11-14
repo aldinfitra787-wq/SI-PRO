@@ -192,7 +192,7 @@ const MASTER_TABS = {
         : p.Status === 'Aktif'
           ? btn('kuota', p.ID_Pelatihan, 'act-edit', 'Kuota', 'users') + (ns ? btn('kirim', p.ID_Pelatihan, 'act-wa', 'Kirim Info', 'message') : '') + btn('edit', p.ID_Pelatihan, 'act-view', 'Edit') + btn('selesai', p.ID_Pelatihan, 'act-del', 'Selesai')
           : btn('edit', p.ID_Pelatihan, 'act-view', 'Edit') + btn('aktif', p.ID_Pelatihan, 'act-wa', 'Buka Lagi');
-      return '<tr><td class="main"><div class="nm">' + esc(p.Nama_Pelatihan) + '</div><div class="sub">' + esc(p.ID_Pelatihan) + ' · ' + esc(p.Lokasi || 'SPN Polda Papua Barat') + (p.Keterangan ? ' · ' + esc(p.Keterangan) : '') + '</div></td>' +
+      return '<tr><td class="main"><div class="nm">' + esc(p.Nama_Pelatihan) + '</div><div class="sub"><b class="kat-mini">' + esc(p.Kategori || 'Prolat') + '</b> · ' + esc(p.ID_Pelatihan) + ' · ' + esc(p.Lokasi || 'SPN Polda Papua Barat') + (p.Keterangan ? ' · ' + esc(p.Keterangan) : '') + '</div></td>' +
         '<td data-l="Pelaksanaan" class="mono-n" style="font-size:13px;white-space:nowrap">' + fmtTgl(p.Tanggal_Mulai) + ' –<br>' + fmtTgl(p.Tanggal_Selesai) + '</td>' +
         '<td data-l="Batas daftar" class="mono-n" style="font-size:13px">' + (p.Batas_Kirim ? fmtTgl(p.Batas_Kirim) + (lewat && p.Status === 'Aktif' ? ' <span class="tag tag-gray">LEWAT</span>' : '') : '<span class="c-red">Belum diisi</span>') + '</td>' +
         '<td data-l="Satker ditunjuk" class="c mono-n">' + (ns || '<span class="c-red">0</span>') + '</td>' +
@@ -440,10 +440,11 @@ function satkerModal(s) {
 }
 
 function pelatihanModal(p) {
-  const edit = !!p; p = p || { Nama_Pelatihan: '', Lokasi: 'SPN Polda Papua Barat', Tanggal_Mulai: '', Tanggal_Selesai: '', Batas_Kirim: '', Keterangan: '', Status: 'Draft' };
+  const edit = !!p; p = p || { Nama_Pelatihan: '', Kategori: 'Prolat', Lokasi: 'SPN Polda Papua Barat', Tanggal_Mulai: '', Tanggal_Selesai: '', Batas_Kirim: '', Keterangan: '', Status: 'Draft' };
   const m = modal({ title: edit ? 'Ubah Pelatihan' : 'Pelatihan Baru (Langkah 1 dari 3)', icon: 'graduation',
     body: '<form data-f class="grid" novalidate><div class="field"><label>Jenis / nama pelatihan<span class="req">*</span></label><input class="input" name="Nama_Pelatihan" value="' + esc(p.Nama_Pelatihan) + '" placeholder="Mis. Diklat Fungsi Teknis Reserse TA 2026"></div>' +
-      '<div class="field"><label>Tempat pelaksanaan<span class="req">*</span></label><input class="input" name="Lokasi" value="' + esc(p.Lokasi || 'SPN Polda Papua Barat') + '"></div>' +
+      '<div class="grid g2"><div class="field"><label>Kategori<span class="req">*</span></label><select class="select" name="Kategori">' + KATEGORI.map((k) => '<option value="' + k.k + '"' + (k.k === (p.Kategori || 'Prolat') ? ' selected' : '') + '>' + k.k + ' — ' + k.t + '</option>').join('') + '</select><span class="hint">Peserta masuk Pangkalan Data setelah pelatihan selesai</span></div>' +
+      '<div class="field"><label>Tempat pelaksanaan<span class="req">*</span></label><input class="input" name="Lokasi" value="' + esc(p.Lokasi || 'SPN Polda Papua Barat') + '"></div></div>' +
       '<div class="grid g3"><div class="field"><label>Tanggal mulai<span class="req">*</span></label><input class="input mono" type="date" name="Tanggal_Mulai" value="' + esc(p.Tanggal_Mulai) + '"></div>' +
       '<div class="field"><label>Tanggal selesai<span class="req">*</span></label><input class="input mono" type="date" name="Tanggal_Selesai" value="' + esc(p.Tanggal_Selesai) + '"></div>' +
       '<div class="field"><label>Batas pendaftaran<span class="req">*</span></label><input class="input mono" type="date" name="Batas_Kirim" value="' + esc(p.Batas_Kirim) + '"><span class="hint">Terkunci pukul 23:59 WIT</span></div></div>' +

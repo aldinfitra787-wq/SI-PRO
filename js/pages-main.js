@@ -95,7 +95,7 @@ function berandaAdmin(el, again) {
   const bk = (lbl, x, n) => '<span class="berkas-ok ' + (x === n ? '' : x ? 'berkas-part' : 'berkas-no') + '">' + lbl + '<span>' + (x === n ? '[OK]' : x + '/' + n) + '</span></span>';
   const rows = slice.length ? slice.map((g) => {
     const s = D.sat(g.sat) || {}, full = g.sprin === g.n && g.sppd === g.n, kq = D.alok(g.pel)[g.sat] || 0;
-    return '<tr><td class="main" data-l="Satker"><div class="nm">' + esc(s.Nama_Satker || g.sat) + '</div><div class="sub" style="color:var(--blue)">' + esc(s.Polda || '') + '</div></td>' +
+    return '<tr><td class="main" data-l="Satker"><div class="nm">' + esc(s.Nama_Satker || g.sat) + '</div><div class="sub" style="color:var(--blue)">' + esc((s.Jenis || 'Satker Polda') + ' · ' + (s.Polda || '')) + '</div></td>' +
       '<td data-l="Program" class="ell" title="' + esc(D.pelNama(g.pel)) + '">' + esc(D.pelNama(g.pel)) + '</td><td data-l="Jumlah" class="mono-n">' + g.n + (kq ? ' / ' + kq : '') + '<span class="fit-no"> orang</span></td>' +
       '<td data-l="Waktu kirim" class="mono-n" style="font-size:12.5px">' + fmtWaktu(g.last) + '<span class="fit-no"> WIT</span></td>' +
       '<td data-l="Berkas"><div class="berkas-set">' + bk('SPRIN', g.sprin, g.n) + bk('SPPD', g.sppd, g.n) + '</div></td>' +
@@ -459,15 +459,17 @@ function inputFailBanner(el) {
 }
 
 /* ─────────────────────────── DATA PESERTA ─────────────────────────── */
-const PesertaPg = { q: '', polda: '', sat: '', pel: '', kel: '', page: 1, per: 10, sel: new Set() };
+const PesertaPg = { q: '', polda: '', sat: '', pel: '', kel: '', jenis: 'Satker Polda', page: 1, per: 10, sel: new Set() };
+/** Admin: data kiriman Satker Polda dan Polres ditampilkan terpisah (tidak digabung). */
+function jenisPeserta(p) { const s = D.sat(p.ID_Satker); return s && s.Jenis === 'Polres' ? 'Polres' : 'Satker Polda'; }
 registerPage('peserta', {
   title: 'Data Peserta',
   render(el) { if (!el._built) pesertaBuild(el); pesertaUpdate(el); }
 });
 
-function pesertaFiltered() {
-  const S = PesertaPg, q = S.q.trim().toLowerCase();
-  return D.d.peserta.filter((p) =>
+function pesertaFiltered(semuaJenis) {
+  const S = PesertaPg, q = S.q.trim().toLowerCase(), adm = isAdmin();
+  return D.d.peserta.filter((p) => (semuaJenis || !adm || jenisPeserta(p) === S.jenis) &&
     (!S.polda || p.Polda_Asal === S.polda) && (!S.sat || p.ID_Satker === S.sat) && (!S.pel || p.ID_Pelatihan === S.pel) &&
     (!S.kel || (S.kel === 'lengkap' ? D.lengkap(p) : !D.lengkap(p))) &&
     (!q || (p.Nama + ' ' + p.NRP_NIP + ' ' + p.Jabatan + ' ' + p.Pangkat).toLowerCase().includes(q))
@@ -480,8 +482,8 @@ function canEditPeserta(p) { if (isAdmin()) return false; const pl = D.pel(p.ID_
 function pesertaBuild(el) {
   const admin = isAdmin();
   el.innerHTML =
-    '<div class="ph"><div><h1>Data Peserta Pelatihan <span class="tag tag-blue" style="font-size:12px">' + (admin ? 'SEMUA SATKER' : esc(D.d.me.namaSatker)) + '</span></h1></div>' +
-    '<div class="ph-act">' + (admin ? '<button class="btn btn-excel" data-xlsx>' + ic('sheet') + 'Unduh Excel</button>' : '<button class="btn btn-soft-green" data-csv>' + ic('sheet') + 'Ekspor CSV</button><a class="btn btn-primary" href="#/input">' + ic('plus') + 'Tambah Peserta</a>') + '</div></div>' +
+    '<div class="ph"><div><h1>Data Peserta Pelatihan <span class="tag tag-blue" style="font-size:12px" data-jtag>' + (admin ? 'SATKER POLDA' : esc(D.d.me.namaSatker)) + '</span></h1></div>' +
+    '<div class="ph-act">' + (admin ? '<div class="seg jn-tabs" data-jn role="tablist" aria-label="Pengirim"></div><button class="btn btn-excel" data-xlsx>' + ic('sheet') + 'Unduh Excel</button>' : '<button class="btn btn-soft-green" data-csv>' + ic('sheet') + 'Ekspor CSV</button><a class="btn btn-primary" href="#/input">' + ic('plus') + 'Tambah Peserta</a>') + '</div></div>' +
     '<div class="card"><div class="card-b pf-b"><div class="pf-row' + (admin ? ' adm' : '') + '">' +
     '<div class="field pf-q"><label class="lbl">Cari peserta</label><div class="with-ic">' + ic('search') + '<input class="input" id="pSearch" placeholder="Nama / NRP / NIP / jabatan" style="text-transform:none"><span class="kbd">CTRL + K</span></div></div>' +
     '<div class="field"><label class="lbl">Program Pelatihan</label><select class="select" data-f="pel"></select></div>' +
@@ -515,6 +517,7 @@ function pesertaBuild(el) {
     }
     const chip = e.target.closest('[data-unset]'); if (chip) { S[chip.dataset.unset] = ''; if (chip.dataset.unset === 'q') search.value = ''; S.page = 1; pesertaUpdate(el); }
     if (e.target.closest('[data-resetf]')) { Object.assign(S, { q: '', polda: '', sat: '', pel: '', kel: '', page: 1 }); search.value = ''; pesertaUpdate(el); }
+    const jn = e.target.closest('[data-jn-v]'); if (jn) { S.jenis = jn.dataset.jnV; S.sat = ''; S.page = 1; pesertaUpdate(el); }
     const pg = e.target.closest('[data-pg]'); if (pg && !pg.disabled) { S.page = +pg.dataset.pg; pesertaUpdate(el); if (!Fit.on()) el.scrollIntoView({ block: 'start' }); }
     const bk = e.target.closest('[data-bulk-act]');
     if (bk) {
@@ -533,7 +536,13 @@ function pesertaUpdate(el, again) {
   const S = PesertaPg, admin = isAdmin();
   const set = (k, html) => { const s = $('[data-f="' + k + '"]', el); if (s) { s.innerHTML = html; s.value = S[k]; } };
   set('polda', poldaOptions(S.polda, 'Semua Polda'));
-  set('sat', satOptions(S.sat, S.polda, 'Semua Satker / Polres', true));
+  if (admin && S.sat && D.sat(S.sat) && D.sat(S.sat).Jenis !== S.jenis) S.jenis = D.sat(S.sat).Jenis === 'Polres' ? 'Polres' : 'Satker Polda';   // dari Rekap/Beranda
+  set('sat', satOptions(S.sat, S.polda, admin ? 'Semua ' + S.jenis : 'Semua Satker / Polres', true, admin ? (s) => (s.Jenis === 'Polres' ? 'Polres' : 'Satker Polda') === S.jenis : null));
+  if (admin) {
+    const base = pesertaFiltered(true), n = (j) => base.filter((p) => jenisPeserta(p) === j).length;
+    $('[data-jn]', el).innerHTML = JENIS_SATKER.map((j) => '<button type="button" role="tab" data-jn-v="' + j + '" class="' + (S.jenis === j ? 'on' : '') + '" aria-selected="' + (S.jenis === j) + '">' + ic(j === 'Polres' ? 'map-pin' : 'building') + j + '<span class="cnt">' + n(j) + '</span></button>').join('');
+    $('[data-jtag]', el).textContent = 'KIRIMAN ' + S.jenis.toUpperCase();
+  }
   set('pel', pelOptions(S.pel, 'Semua Program Pelatihan'));
   set('kel', $('[data-f=kel]', el).innerHTML);
   if ($('#pSearch', el).value !== S.q && document.activeElement !== $('#pSearch', el)) $('#pSearch', el).value = S.q;
@@ -552,7 +561,7 @@ function pesertaUpdate(el, again) {
   const chipBox = $('[data-chips]', el);
   chipBox.hidden = !chips.length;
   chipBox.innerHTML = '<span class="lbl">Filter aktif:</span>' + chips.map((c) => '<span class="fchip ' + c[2] + '"><span>' + esc(c[1]) + '</span><button data-unset="' + c[0] + '" aria-label="Hapus filter">' + ic('x') + '</button></span>').join('') + '<button class="linkbtn" data-resetf>Reset filter</button>' +
-    '<span class="total-badge">' + all.length + ' PESERTA</span>';
+    '<span class="total-badge">' + all.length + ' PESERTA' + (admin ? ' ' + S.jenis.toUpperCase() : '') + '</span>';
 
   $('[data-bulk]', el).innerHTML = S.sel.size ? '<div class="bulk"><span class="dot" style="color:#60a5fa"></span><span class="n">' + S.sel.size + ' PERSONEL DIPILIH</span><span class="t">OPERASI DATA MASSAL</span><span class="sp"></span>' +
     '<button class="btn btn-sm" data-bulk-act="clear" style="background:transparent;color:#fff;border-color:#2d4a85">Batal pilih</button>' +
@@ -575,11 +584,11 @@ function pesertaUpdate(el, again) {
       '<td data-l="SPRIN" class="c">' + fb(p, 'SPRIN') + '</td><td data-l="SPPD" class="c">' + fb(p, 'SPPD') + '</td>' +
       '<td class="acts-td"><div class="acts">' + (busy ? '<span class="tag tag-blue"><span class="spin" style="width:10px;height:10px"></span>Menyimpan…</span>' : '<button class="btn btn-xs act-view" data-act="view" data-id="' + esc(p.ID_Peserta) + '">Lihat</button>' +
       (can ? '<button class="btn btn-xs act-edit" data-act="edit" data-id="' + esc(p.ID_Peserta) + '">Edit</button>' : '') + (canDel ? '<button class="btn btn-xs act-del" data-act="del" data-id="' + esc(p.ID_Peserta) + '">Hapus</button>' : '')) + '</div></td></tr>';
-  }).join('') : '<tr><td colspan="' + ncol + '"><div class="empty">' + ic('search') + '<b>Tidak ada data yang cocok</b>' + (D.d.peserta.length ? 'Ubah kata kunci atau reset filter.' : 'Belum ada peserta.' + (admin ? '' : ' Mulai dengan menekan "Tambah Peserta".')) + '</div></td></tr>';
+  }).join('') : '<tr><td colspan="' + ncol + '"><div class="empty">' + ic('search') + '<b>' + (admin ? 'Belum ada kiriman ' + esc(S.jenis) + ' yang cocok' : 'Tidak ada data yang cocok') + '</b>' + (D.d.peserta.length ? 'Ubah kata kunci atau reset filter.' : 'Belum ada peserta.' + (admin ? '' : ' Mulai dengan menekan "Tambah Peserta".')) + '</div></td></tr>';
   const allCk = $('[data-all]', el), pageIds = items.filter(canDeletePeserta).map((p) => p.ID_Peserta);
   allCk.checked = pageIds.length > 0 && pageIds.every((id) => S.sel.has(id));
   allCk.indeterminate = !allCk.checked && pageIds.some((id) => S.sel.has(id));
-  $('[data-info]', el).innerHTML = '<span class="dot"></span>Menampilkan <b>' + (items.length ? (S.page - 1) * S.per + 1 : 0) + '–' + ((S.page - 1) * S.per + items.length) + '</b> dari <b>' + all.length + '</b> peserta';
+  $('[data-info]', el).innerHTML = '<span class="dot"></span>' + (admin ? esc(S.jenis) + ' · ' : '') + 'Menampilkan <b>' + (items.length ? (S.page - 1) * S.per + 1 : 0) + '–' + ((S.page - 1) * S.per + items.length) + '</b> dari <b>' + all.length + '</b> peserta';
   $('[data-pager]', el).innerHTML = pagerHtml(S.page, pages);
   // Pas layar: jumlah baris mengikuti tinggi area tabel (tanpa gulir)
   const per = Fit.on() ? Fit.rows($('[data-wrap]', el), 10) : 10;
@@ -647,13 +656,14 @@ function pesertaExcel(rows, terpilih) {
   const H = ['NO', 'NAMA', 'NRP / NIP', 'PANGKAT', 'JABATAN', 'SATKER / POLRES', 'POLDA', 'SPRIN', 'SPPD', 'KETERANGAN'];
   const W = [6, 34, 21, 20, 36, 30, 26, 10, 10, 18];
   const last = XLSX.col(H.length - 1);
-  const sheetFor = (pelId, list) => {
+  const sheetFor = (pelId, list, jn) => {
     const pel = D.pel(pelId) || {}, nama = pel.Nama_Pelatihan || pelId || 'Tanpa Pelatihan';
     list = list.slice().sort(byName);
     const t = (v, st) => ({ v, s: st });
     const rowsX = [
       [t('DAFTAR PESERTA PELATIHAN', 1)],
       [t(String(nama).toUpperCase(), 2)],
+      [t('PENGIRIMAN ' + jn.toUpperCase(), 2)],
       [t('Tempat: ' + (pel.Lokasi || 'SPN Polda Papua Barat') + (pel.Tanggal_Mulai ? '   ·   Pelaksanaan: ' + fmtTgl(pel.Tanggal_Mulai, true) + ' s.d. ' + fmtTgl(pel.Tanggal_Selesai, true) : ''), 3)],
       [t((filt.length ? 'Filter: ' + filt.join(' · ') + '   ·   ' : '') + 'Diurutkan menurut abjad nama   ·   Diunduh ' + stamp, 3)],
       [],
@@ -667,31 +677,34 @@ function pesertaExcel(rows, terpilih) {
     const endData = rowsX.length;
     rowsX.push([t('JUMLAH PESERTA: ' + list.length + ' ORANG', 8)].concat(H.slice(1).map(() => t('', 8))));
     return {
-      name: nama, rows: rowsX, cols: W, freeze: 6, printTitle: 5,
-      heights: { 0: 24, 1: 20, 5: 30 },
-      filter: 'A6:' + last + endData,
-      merges: ['A1:' + last + '1', 'A2:' + last + '2', 'A3:' + last + '3', 'A4:' + last + '4', 'A' + (endData + 1) + ':' + last + (endData + 1)]
+      name: (jn === 'Polres' ? 'Polres - ' : 'Satker Polda - ') + nama, rows: rowsX, cols: W, freeze: 7, printTitle: 6,
+      heights: { 0: 24, 1: 20, 2: 18, 6: 30 },
+      filter: 'A7:' + last + endData,
+      merges: ['A1:' + last + '1', 'A2:' + last + '2', 'A3:' + last + '3', 'A4:' + last + '4', 'A5:' + last + '5', 'A' + (endData + 1) + ':' + last + (endData + 1)]
     };
   };
-  // Satu sheet per jenis pelatihan (bila filter pelatihan dipilih → hanya pelatihan itu)
+  // Satu sheet per pelatihan × pengirim: Satker Polda dan Polres TIDAK digabung dalam satu daftar
   const groups = {};
-  rows.forEach((p) => { (groups[p.ID_Pelatihan] = groups[p.ID_Pelatihan] || []).push(p); });
-  const order = D.pelSorted().map((p) => p.ID_Pelatihan).filter((id) => groups[id]).concat(Object.keys(groups).filter((id) => !D.pel(id)));
-  const sheets = order.map((id) => sheetFor(id, groups[id]));
+  rows.forEach((p) => { const k = p.ID_Pelatihan + '|' + jenisPeserta(p); (groups[k] = groups[k] || []).push(p); });
+  const pelIds = D.pelSorted().map((p) => p.ID_Pelatihan).concat(Array.from(new Set(rows.map((p) => p.ID_Pelatihan))).filter((id) => !D.pel(id)));
+  const order = []; pelIds.forEach((id) => JENIS_SATKER.forEach((j) => { if (groups[id + '|' + j]) order.push(id + '|' + j); }));
+  const sheets = order.map((k) => { const [id, j] = k.split('|'); return sheetFor(id, groups[k], j); });
   if (sheets.length > 1) {
     const t = (v, st) => ({ v, s: st });
     const r = [[t('RINGKASAN DATA PESERTA PELATIHAN', 1)], [t((filt.length ? 'Filter: ' + filt.join(' · ') + '   ·   ' : '') + 'Diunduh ' + stamp, 3)], [],
-      ['NO', 'PROGRAM PELATIHAN', 'TEMPAT', 'PELAKSANAAN', 'JUMLAH PESERTA', 'BERKAS LENGKAP'].map((h) => t(h, 4))];
-    order.forEach((id, i) => { const pel = D.pel(id) || {}, g = groups[id];
-      r.push([t(i + 1, 6), t(pel.Nama_Pelatihan || id, 5), t(pel.Lokasi || 'SPN Polda Papua Barat', 5), t(pel.Tanggal_Mulai ? fmtTgl(pel.Tanggal_Mulai) + ' – ' + fmtTgl(pel.Tanggal_Selesai) : '-', 7), t(g.length, 6), t(g.filter(D.lengkap).length, 6)]); });
-    r.push([t('TOTAL: ' + rows.length + ' PESERTA', 8), t('', 8), t('', 8), t('', 8), t('', 8), t('', 8)]);
-    sheets.unshift({ name: 'Ringkasan', rows: r, cols: [6, 44, 30, 24, 16, 16], freeze: 4, heights: { 0: 24, 3: 28 }, merges: ['A1:F1', 'A2:F2', 'A' + r.length + ':F' + r.length] });
+      ['NO', 'PROGRAM PELATIHAN', 'PENGIRIM', 'TEMPAT', 'PELAKSANAAN', 'JUMLAH PESERTA', 'BERKAS LENGKAP'].map((h) => t(h, 4))];
+    order.forEach((k, i) => { const [id, j] = k.split('|'), pel = D.pel(id) || {}, g = groups[k];
+      r.push([t(i + 1, 6), t(pel.Nama_Pelatihan || id, 5), t(j, 7), t(pel.Lokasi || 'SPN Polda Papua Barat', 5), t(pel.Tanggal_Mulai ? fmtTgl(pel.Tanggal_Mulai) + ' – ' + fmtTgl(pel.Tanggal_Selesai) : '-', 7), t(g.length, 6), t(g.filter(D.lengkap).length, 6)]); });
+    const nj = (j) => rows.filter((p) => jenisPeserta(p) === j).length;
+    r.push([t('TOTAL: Satker Polda ' + nj('Satker Polda') + ' · Polres ' + nj('Polres') + ' PESERTA', 8), t('', 8), t('', 8), t('', 8), t('', 8), t('', 8), t('', 8)]);
+    sheets.unshift({ name: 'Ringkasan', rows: r, cols: [6, 44, 16, 30, 24, 16, 16], freeze: 4, heights: { 0: 24, 3: 28 }, merges: ['A1:G1', 'A2:G2', 'A' + r.length + ':G' + r.length] });
   }
   const slug = (x) => String(x).replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50);
-  const label = order.length === 1 ? slug((D.pel(order[0]) || {}).Nama_Pelatihan || order[0]) : 'Semua-Pelatihan';
+  const one = order.length === 1 ? order[0].split('|') : null;
+  const label = one ? slug(((D.pel(one[0]) || {}).Nama_Pelatihan || one[0]) + '-' + one[1]) : 'Semua-Pelatihan';
   const name = 'SI-PRO_Peserta_' + label + '_' + now.y + '-' + String(now.m).padStart(2, '0') + '-' + String(now.d).padStart(2, '0') + '.xlsx';
   downloadBlob(XLSX.build(sheets), name);
-  toast(rows.length + ' peserta diunduh ke Excel' + (order.length > 1 ? ' (' + order.length + ' sheet pelatihan + ringkasan)' : '') + ', urut abjad.', 'success');
+  toast(rows.length + ' peserta diunduh ke Excel' + (order.length > 1 ? ' (' + order.length + ' sheet terpisah Satker Polda / Polres + ringkasan)' : '') + ', urut abjad.', 'success');
 }
 
 /* ───────────────── PENDAFTARAN KOLEKTIF (Petugas) ─────────────────
