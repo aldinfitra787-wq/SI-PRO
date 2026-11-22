@@ -24,6 +24,8 @@ Urutan kerja: **A → C → D**. Total ±30 menit. Login memakai **username + pa
 
 > **Sudah memasang v2.1?** Perbarui **keduanya**: (1) ganti seluruh isi `Kode.gs` → **Deploy → Kelola deployment → ✏️ Edit → Versi: Versi baru → Deploy**; (2) ganti isi folder frontend dengan isi `si-prolat.zip`, isi lagi `GAS_URL`, lalu `git add .` → `git commit -m "v2.2"` → `git push`. Setelah itu masuk sebagai Admin Induk → **Kelola Master → Keamanan → Amankan Sekarang**.
 >
+> **Perbaikan v2.2.1:** di server asli, panel Keamanan sempat menampilkan *TIDAK DIKETAHUI* dan *0/10 terkunci* karena fungsi pengecekan memakai izin Google (`userinfo.email`) yang tidak ada di `appsscript.json`. Kini email pemilik dibaca dari pemilik spreadsheet (izin Drive yang sudah ada) dan folder dicek dengan fungsi folder. Setelah `Kode.gs` 2.2.1 dipasang, sheet **dikunci otomatis** saat aplikasi pertama kali dibuka; lalu tekan **Amankan Sekarang** agar spreadsheet & folder menjadi Privat. Tidak perlu otorisasi ulang.
+>
 > **Perubahan v2.2 — Row Level Security (RLS) & pengamanan database:**
 > - **Google Sheets tidak punya tombol "Row Level Security"** seperti Supabase/PostgreSQL, jadi RLS dipasang di server Apps Script — satu-satunya pintu ke database. Hasilnya setara: setiap baris di setiap tabel diperiksa kebijakannya **sebelum** dibaca, ditambah, diubah, atau dihapus. RLS **selalu aktif** dan tidak dapat dimatikan dari aplikasi.
 >   - **Tolak-bawaan:** tabel tanpa kebijakan tidak bisa disentuh pengguna.

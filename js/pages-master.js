@@ -355,7 +355,8 @@ function renderKeamanan(host) {
     '<div class="card"><div class="card-h"><h3>' + ic('shield') + 'Status pengamanan</h3></div><div class="card-b sec-list">' +
     share(k.spreadsheet, 'Spreadsheet database') + share(k.folder, 'Folder berkas SPRIN/SPPD & foto') +
     '<div class="sec-row"><div><b>Kunci sheet</b><small>Hanya server/pemilik yang dapat mengubah sheet</small></div>' + (prot ? ok(nProt === prot.length, nProt + '/' + prot.length + ' SHEET TERKUNCI', nProt + '/' + prot.length + ' TERKUNCI') : ok(null)) + '</div>' +
-    '<div class="sec-row"><div><b>Password</b><small>Hash berulang + salt per akun + kunci rahasia server (pepper)</small></div>' + ok(k.pepper && k.sandi.v2 === k.sandi.total, k.sandi.v2 + '/' + k.sandi.total + ' AKUN v2', k.sandi.v2 + '/' + k.sandi.total + ' (sisanya naik saat login)') + '</div>' +
+    '<div class="sec-row"><div><b>Password</b><small>Hash berulang + salt per akun + kunci rahasia server (pepper)</small></div>' + (k.pepper && k.sandi.v2 === k.sandi.total ? ok(true, k.sandi.v2 + '/' + k.sandi.total + ' AKUN v2') : '<span class="tag tag-amber" title="Password lama tetap ter-hash & aman; otomatis naik ke v2 saat pemiliknya login">' + k.sandi.v2 + '/' + k.sandi.total + ' · SISANYA OTOMATIS SAAT LOGIN</span>') + '</div>' +
+    (k.galat ? '<div class="alert alert-red" style="margin:8px 0 0">' + ic('alert-triangle') + '<div><span>Penguncian terakhir belum berhasil penuh: <span class="mono">' + esc(k.galat) + '</span></span></div></div>' : '') +
     '<div class="sec-row"><div><b>Proteksi login</b><small>' + k.loginMaks + '× salah → dikunci ' + k.kunciMenit + ' menit · sesi ' + k.sesiHari + ' hari · ' + k.loginGagal + ' login gagal (30 hari)</small></div>' + ok(true, 'AKTIF') + '</div>' +
     '<div class="sec-row"><div><b>Pelindung browser</b><small>Content-Security-Policy, anti-iframe (clickjacking), tanpa referrer</small></div>' + ok(true, 'AKTIF') + '</div>' +
     '</div></div>' +
