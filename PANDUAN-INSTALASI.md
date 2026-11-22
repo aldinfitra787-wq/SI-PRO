@@ -1,4 +1,4 @@
-# PANDUAN INSTALASI — SI-PRO v2.1
+# PANDUAN INSTALASI — SI-PRO v2.2
 
 Sistem Informasi Pendidikan dan Pelatihan · SPN Polda Papua Barat
 
@@ -15,13 +15,28 @@ Yang Anda terima:
 
 | Berkas | Untuk apa |
 |---|---|
-| `Kode.gs` | Backend. Disalin-tempel ke editor Apps Script (**berubah di v2.1**) |
+| `Kode.gs` | Backend. Disalin-tempel ke editor Apps Script (**berubah di v2.2**) |
 | `appsscript.json` | Manifest Apps Script (zona waktu WIT & izin) |
 | `si-prolat.zip` | Frontend untuk GitHub Pages (isi ZIP = isi repository) |
 | `PANDUAN-INSTALASI.md` | Dokumen ini |
 
 Urutan kerja: **A → C → D**. Total ±30 menit. Login memakai **username + password** (tidak perlu akun Google bagi petugas, tidak perlu Google Cloud Console).
 
+> **Sudah memasang v2.1?** Perbarui **keduanya**: (1) ganti seluruh isi `Kode.gs` → **Deploy → Kelola deployment → ✏️ Edit → Versi: Versi baru → Deploy**; (2) ganti isi folder frontend dengan isi `si-prolat.zip`, isi lagi `GAS_URL`, lalu `git add .` → `git commit -m "v2.2"` → `git push`. Setelah itu masuk sebagai Admin Induk → **Kelola Master → Keamanan → Amankan Sekarang**.
+>
+> **Perubahan v2.2 — Row Level Security (RLS) & pengamanan database:**
+> - **Google Sheets tidak punya tombol "Row Level Security"** seperti Supabase/PostgreSQL, jadi RLS dipasang di server Apps Script — satu-satunya pintu ke database. Hasilnya setara: setiap baris di setiap tabel diperiksa kebijakannya **sebelum** dibaca, ditambah, diubah, atau dihapus. RLS **selalu aktif** dan tidak dapat dimatikan dari aplikasi.
+>   - **Tolak-bawaan:** tabel tanpa kebijakan tidak bisa disentuh pengguna.
+>   - **Diperiksa di lapisan terbawah** (fungsi tulis sheet), jadi walaupun ada celah di fitur mana pun, petugas tetap **tidak bisa** mengubah/menghapus/menambah peserta Satker lain, memindahkan peserta ke Satker lain, menaikkan perannya menjadi Admin, atau mengubah pelatihan, kuota, pengumuman, dan Pangkalan Data.
+>   - **Kolom rahasia** (`Password_Hash`, `Salt`, `Folder_ID`) dibuang dari setiap respons server.
+>   - **Pelanggaran dicatat** di Log sebagai `RLS_DITOLAK` dan tampil di panel Keamanan.
+>   - Petugas tidak bisa mencetak laporan pelatihan yang belum dibagikan ke Satker-nya.
+> - **Spreadsheet & folder Drive dikunci.** Semua sheet diberi proteksi (hanya server/akun pemilik yang bisa mengubah, termasuk bila spreadsheet tak sengaja dibagikan). Tombol **Amankan Sekarang** juga mematikan "siapa saja yang memiliki link" pada spreadsheet & folder berkas. Bisa juga dijalankan dari editor: fungsi `amankanDatabase()`.
+> - **Password lebih kuat:** hash berulang + salt per akun + **pepper** (kunci rahasia di Script Properties `PWD_PEPPER`). Isi sheet `Pengguna` saja tidak cukup untuk menebak password. Akun lama dinaikkan otomatis saat login berikutnya (tanpa perlu ganti password).
+> - **Pengamanan lain:** perbandingan token waktu-konstan, kunci sesi dibangkitkan secara kriptografis (fungsi `rotasiKunciSesi()` untuk mengeluarkan semua sesi bila curiga bocor), batas ukuran permintaan 12 MB, galat internal tidak dibocorkan ke petugas (cukup kode laporan), dan di browser: **Content-Security-Policy** (hanya skrip SI-PRO & server Apps Script yang boleh jalan — menangkal XSS), anti-iframe/clickjacking, tanpa referrer.
+> - **Panel baru: Kelola Master → Keamanan** — status RLS, tabel kebijakan per tabel (Admin vs Petugas), status berbagi spreadsheet & folder, jumlah sheet terkunci, status hash password, proteksi login, dan daftar akses yang ditolak RLS 30 hari terakhir.
+> - **Tetap wajib dijaga sendiri:** jangan bagikan spreadsheet/folder/proyek Apps Script ke orang lain; aktifkan **Verifikasi 2 Langkah** pada akun Google pemilik; deployment tetap *Jalankan sebagai: Saya*.
+>
 > **Sudah memasang v2.0?** Perbarui **keduanya**: (1) ganti seluruh isi `Kode.gs` → **Deploy → Kelola deployment → ✏️ Edit → Versi: Versi baru → Deploy**; (2) ganti isi folder frontend dengan isi `si-prolat.zip`, isi lagi `GAS_URL`, lalu `git add .` → `git commit -m "v2.1"` → `git push`. Tidak ada sheet/kolom baru.
 >
 > **Perubahan v2.1 — kuota & petugas selalu sinkron:**

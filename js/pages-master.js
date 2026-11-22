@@ -5,7 +5,7 @@
 'use strict';
 const MasterPg = window.MasterPg = { tab: 'pelatihan', thumbs: null, q: { pengguna: '', satker: '', pelatihan: '' }, f: { peran: '', polda: '' }, logs: null };
 const TABS = [['pelatihan', 'Pelatihan & Kuota', 'graduation'], ['satker', 'Satker / Polres', 'building'], ['pengguna', 'Pengguna Sistem', 'users'],
-  ['pengaturan', 'Pengaturan Laporan', 'settings'], ['migrasi', 'Migrasi Data', 'database'], ['log', 'Log Aktivitas', 'history']];
+  ['pengaturan', 'Pengaturan Laporan', 'settings'], ['migrasi', 'Migrasi Data', 'database'], ['log', 'Log Aktivitas', 'history'], ['keamanan', 'Keamanan', 'lock']];
 
 registerPage('master', {
   title: 'Kelola Master', admin: true,
@@ -26,7 +26,7 @@ registerPage('master', {
     let host = $('[data-tab]', el);
     // Ganti tab → wadah baru (listener tab sebelumnya ikut terbuang, tidak menumpuk)
     if (host._tab !== tab) { const nh = host.cloneNode(false); host.replaceWith(nh); host = nh; host._tab = tab; host._built = false; }
-    host.classList.toggle('scroll', tab === 'pengaturan');
+    host.classList.toggle('scroll', tab === 'pengaturan' || tab === 'keamanan');
     host.classList.toggle('migr', tab === 'migrasi');
     MASTER_TABS[tab](host);
     AutoPager.attach($('.card.fill[data-apc]', host));
@@ -305,8 +305,65 @@ const MASTER_TABS = {
       $('[data-ref]', host).addEventListener('click', () => loadLogs(host, true));
       loadLogs(host, false);
     }
+  },
+  /* ── Keamanan: Row Level Security & pengamanan database ── */
+  keamanan(host) {
+    if (!host._built) {
+      host._built = true;
+      host.innerHTML = '<div data-sec><div class="empty"><span class="spin" style="width:22px;height:22px;color:var(--blue)"></span><b>Memeriksa keamanan database…</b></div></div>';
+      host.addEventListener('click', async (e) => {
+        if (e.target.closest('[data-sec-ref]')) loadKeamanan(host, true);
+        const b = e.target.closest('[data-sec-lock]');
+        if (b) {
+          if (!(await confirmDlg({ title: 'Amankan database sekarang?', okText: 'Amankan', message: 'Semua sheet akan <b>dikunci</b> (hanya server SI-PRO / akun pemilik yang dapat mengubah), dan spreadsheet serta folder berkas dijadikan <b>Privat</b> — tautan berbagi publik dimatikan dan hanya akun pemilik yang dapat membukanya.<br><br>Aplikasi tetap berjalan normal.' }))) return;
+          const done = busyBtn(b, 'Mengamankan…');
+          const res = await api('amankanDatabase', {});
+          done(); toast(res.message, res.success ? 'success' : 'error');
+          if (res.success) loadKeamanan(host, true);
+        }
+      });
+    }
+    loadKeamanan(host, false);
   }
 };
+
+async function loadKeamanan(host, force) {
+  if (MasterPg.sec && !force) return renderKeamanan(host);
+  const b = $('[data-sec-ref]', host), done = b ? busyBtn(b) : null;
+  const res = await api('keamanan', {}, { read: true });
+  if (done) done();
+  if (!res.success) { $('[data-sec]', host).innerHTML = '<div class="empty">' + esc(res.message) + '</div>'; return; }
+  MasterPg.sec = res.data; renderKeamanan(host);
+}
+function renderKeamanan(host) {
+  const k = MasterPg.sec, box = $('[data-sec]', host); if (!box) return;
+  const ok = (v, yes, no) => v === null || v === undefined ? '<span class="tag tag-gray">TIDAK DIKETAHUI</span>' : v ? '<span class="tag tag-green">' + ic('check') + yes + '</span>' : '<span class="tag tag-red">' + ic('alert-triangle') + no + '</span>';
+  const share = (s, nama) => !s ? '' : '<div class="sec-row"><div><b>' + nama + '</b><small>' + (s.privat ? 'Hanya akun pemilik Apps Script' : 'Akses: ' + esc(s.akses)) +
+    (s.editor && s.editor.length ? ' · editor lain: ' + esc(s.editor.join(', ')) : '') + (s.viewer && s.viewer.length ? ' · pembaca: ' + esc(s.viewer.join(', ')) : '') + '</small></div>' +
+    ok(s.privat && !(s.editor || []).length, 'PRIVAT', s.privat ? 'ADA EDITOR LAIN' : 'DAPAT DIBUKA LEWAT TAUTAN') + '</div>';
+  const prot = k.proteksi, nProt = prot ? prot.filter((x) => x.ok).length : 0;
+  const aman = k.spreadsheet && k.spreadsheet.privat && !(k.spreadsheet.editor || []).length && prot && nProt === prot.length;
+  box.innerHTML =
+    '<div class="sec-hero ' + (aman ? 'ok' : 'warn') + '"><div class="sec-ic">' + ic('shield-check') + '</div><div><h2>Row Level Security: <span>AKTIF</span></h2>' +
+    '<p>Setiap baris di setiap tabel diperiksa di server sebelum dibaca, ditambah, diubah, atau dihapus. Petugas hanya dapat menyentuh data Satker-nya sendiri; kolom rahasia tidak pernah dikirim ke browser. RLS selalu aktif dan tidak dapat dimatikan.</p></div>' +
+    '<div class="sec-act"><button class="btn" data-sec-ref>' + ic('refresh') + 'Periksa ulang</button><button class="btn btn-primary" data-sec-lock>' + ic('lock') + 'Amankan Sekarang</button></div></div>' +
+    '<div class="sec-grid">' +
+    '<div class="card"><div class="card-h"><h3>' + ic('database') + 'Kebijakan per tabel (RLS)</h3></div><div class="tbl-wrap"><table class="tbl sec-tbl"><thead><tr><th>Tabel</th><th>Admin Induk</th><th>Petugas Satker</th></tr></thead><tbody>' +
+    k.kebijakan.map((p) => '<tr><td><div class="nm mono" style="font-size:12.5px">' + esc(p.tabel) + '</div><div class="sub">' + esc(p.ket) + '</div></td><td>' + esc(p.admin) + '</td><td>' + (/Tidak ada/.test(p.petugas) ? '<span class="c-red">' + ic('lock') + ' ' + esc(p.petugas) + '</span>' : esc(p.petugas)) + '</td></tr>').join('') +
+    '</tbody></table></div><div class="card-f"><span class="foot-info">Kolom rahasia yang selalu disembunyikan: <b class="mono">' + esc(k.kolomRahasia.join(', ')) + '</b></span></div></div>' +
+    '<div class="sec-col">' +
+    '<div class="card"><div class="card-h"><h3>' + ic('shield') + 'Status pengamanan</h3></div><div class="card-b sec-list">' +
+    share(k.spreadsheet, 'Spreadsheet database') + share(k.folder, 'Folder berkas SPRIN/SPPD & foto') +
+    '<div class="sec-row"><div><b>Kunci sheet</b><small>Hanya server/pemilik yang dapat mengubah sheet</small></div>' + (prot ? ok(nProt === prot.length, nProt + '/' + prot.length + ' SHEET TERKUNCI', nProt + '/' + prot.length + ' TERKUNCI') : ok(null)) + '</div>' +
+    '<div class="sec-row"><div><b>Password</b><small>Hash berulang + salt per akun + kunci rahasia server (pepper)</small></div>' + ok(k.pepper && k.sandi.v2 === k.sandi.total, k.sandi.v2 + '/' + k.sandi.total + ' AKUN v2', k.sandi.v2 + '/' + k.sandi.total + ' (sisanya naik saat login)') + '</div>' +
+    '<div class="sec-row"><div><b>Proteksi login</b><small>' + k.loginMaks + '× salah → dikunci ' + k.kunciMenit + ' menit · sesi ' + k.sesiHari + ' hari · ' + k.loginGagal + ' login gagal (30 hari)</small></div>' + ok(true, 'AKTIF') + '</div>' +
+    '<div class="sec-row"><div><b>Pelindung browser</b><small>Content-Security-Policy, anti-iframe (clickjacking), tanpa referrer</small></div>' + ok(true, 'AKTIF') + '</div>' +
+    '</div></div>' +
+    '<div class="card"><div class="card-h"><h3>' + ic('alert-triangle') + 'Akses yang ditolak RLS <span class="tag ' + (k.jumlahPelanggaran ? 'tag-red' : 'tag-green') + '">' + k.jumlahPelanggaran + ' · 30 hari</span></h3></div><div class="card-b">' +
+    (k.pelanggaran.length ? '<div class="sec-log">' + k.pelanggaran.map((v) => '<div><span class="mono-n">' + fmtWaktu(v.waktu) + '</span><b>' + esc(v.pengguna) + '</b><small>' + esc(v.detail) + '</small></div>').join('') + '</div>'
+      : '<div class="empty" style="padding:14px">' + ic('check-circle') + '<b>Tidak ada percobaan akses ilegal</b>Semua permintaan 30 hari terakhir sesuai kebijakan.</div>') +
+    '</div></div></div></div>';
+}
 
 async function loadLogs(host, force) {
   if (MasterPg.logs && !force) return renderLogs(host);

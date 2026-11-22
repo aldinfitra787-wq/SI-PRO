@@ -1401,3 +1401,26 @@ body, button, input, select, textarea { font-family: Arial, Helvetica, sans-seri
 .alok-modal .alok-sum .ic { width: 16px; height: 16px; color: var(--green); vertical-align: -3px; margin-right: 4px; }
 .alok-modal .alok-sum b { font-size: 16px; }
 .kosong-info { align-items: center; } .kosong-info > div { flex: 1; } .kosong-info .btn { flex: none; }
+
+/* ═════════ v2.2 — Keamanan (Row Level Security) ═════════ */
+.sec-hero { display: flex; gap: 16px; align-items: center; background: linear-gradient(110deg, #0f2147, #1b3a7a); color: #fff; border-radius: var(--r); padding: 18px 20px; margin-bottom: 14px; box-shadow: var(--shadow); }
+.sec-hero.warn { background: linear-gradient(110deg, #0f2147, #7c2d12); }
+.sec-ic { width: 54px; height: 54px; border-radius: 14px; background: rgba(255, 255, 255, .12); display: grid; place-items: center; flex: none; }
+.sec-ic .ic { width: 30px; height: 30px; color: #86efac; } .sec-hero.warn .sec-ic .ic { color: #fcd34d; }
+.sec-hero h2 { margin: 0 0 4px; font-size: 19px; letter-spacing: .02em; } .sec-hero h2 span { color: #86efac; }
+.sec-hero p { margin: 0; font-size: 13px; color: #dbe4f3; max-width: 820px; line-height: 1.5; }
+.sec-act { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.sec-act .btn:not(.btn-primary) { background: rgba(255, 255, 255, .1); color: #fff; border-color: rgba(255, 255, 255, .25); }
+.sec-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+.sec-col { display: grid; gap: 14px; }
+.sec-tbl td { font-size: 13px; vertical-align: top; } .sec-tbl td .ic { width: 13px; height: 13px; vertical-align: -2px; }
+.sec-list { display: grid; gap: 0; padding-top: 4px; padding-bottom: 4px; }
+.sec-row { display: flex; align-items: center; gap: 12px; justify-content: space-between; padding: 10px 0; border-top: 1px solid var(--line-2); }
+.sec-row:first-child { border-top: 0; }
+.sec-row b { display: block; font-size: 13.5px; } .sec-row small { display: block; color: var(--muted); font-size: 12px; margin-top: 1px; }
+.sec-row .tag { flex: none; } .sec-row .tag .ic { width: 12px; height: 12px; }
+.sec-log { display: grid; gap: 6px; max-height: 240px; overflow: auto; }
+.sec-log > div { display: grid; grid-template-columns: auto auto 1fr; gap: 4px 10px; align-items: baseline; font-size: 12.5px; padding: 6px 8px; background: var(--red-50); border-radius: 6px; }
+.sec-log small { grid-column: 1 / -1; color: var(--ink-2); }
+@media (max-width: 1100px) { .sec-grid { grid-template-columns: minmax(0, 1fr); } .sec-hero { flex-wrap: wrap; } .sec-act { margin-left: 0; } }
+.sec-tbl td, .sec-tbl th { white-space: normal !important; } .sec-tbl th:first-child { width: 30%; }

@@ -3,6 +3,15 @@
    komponen UI (toast, modal, konfirmasi), utilitas format.
    ========================================================================= */
 'use strict';
+/* Anti-clickjacking: SI-PRO tidak boleh ditampilkan di dalam iframe situs lain (mencegah pengguna tertipu mengeklik tombol tersembunyi). */
+(function () {
+  try {
+    if (window.top !== window.self) {
+      document.documentElement.style.display = 'none';
+      window.top.location = window.self.location.href;
+    }
+  } catch (e) { document.documentElement.style.display = 'none'; }
+})();
 const CFG = window.SIPROLAT_CONFIG || {};
 const GAS_URL = (CFG.GAS_URL || '').trim();
 const $ = (s, r) => (r || document).querySelector(s);
