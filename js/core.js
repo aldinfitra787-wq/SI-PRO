@@ -330,7 +330,8 @@ function downloadBlob(blob, name) {
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 function toCsv(rows, headers) {
-  const q = (v) => { const s = String(v == null ? '' : v); return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  // Anti "CSV injection": teks diawali = + - @ (atau tab/CR) tidak boleh dijalankan Excel sebagai rumus saat CSV dibuka
+  const q = (v) => { let s = String(v == null ? '' : v); if (typeof v === 'string' && /^[=+\-@\t\r]/.test(s)) s = "'" + s; return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   return '﻿' + [headers.map((h) => q(h.label)).join(',')].concat(rows.map((r) => headers.map((h) => q(typeof h.get === 'function' ? h.get(r) : r[h.get])).join(','))).join('\r\n');
 }
 function downloadCsv(rows, headers, name) { downloadBlob(new Blob([toCsv(rows, headers)], { type: 'text/csv;charset=utf-8' }), name); }

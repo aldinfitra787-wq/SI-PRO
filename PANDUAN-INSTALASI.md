@@ -1,4 +1,4 @@
-# PANDUAN INSTALASI — SI-PRO v2.2
+# PANDUAN INSTALASI — SI-PRO v2.3
 
 Sistem Informasi Pendidikan dan Pelatihan · SPN Polda Papua Barat
 
@@ -15,13 +15,22 @@ Yang Anda terima:
 
 | Berkas | Untuk apa |
 |---|---|
-| `Kode.gs` | Backend. Disalin-tempel ke editor Apps Script (**berubah di v2.2**) |
+| `Kode.gs` | Backend. Disalin-tempel ke editor Apps Script (**berubah di v2.3**) |
 | `appsscript.json` | Manifest Apps Script (zona waktu WIT & izin) |
 | `si-prolat.zip` | Frontend untuk GitHub Pages (isi ZIP = isi repository) |
 | `PANDUAN-INSTALASI.md` | Dokumen ini |
 
 Urutan kerja: **A → C → D**. Total ±30 menit. Login memakai **username + password** (tidak perlu akun Google bagi petugas, tidak perlu Google Cloud Console).
 
+> **Sudah memasang v2.2 / v2.2.1?** Perbarui **keduanya** (Kode.gs → Deploy versi baru; frontend → `git push`). Tidak perlu otorisasi ulang. Saat aplikasi pertama kali dibuka, server otomatis menetralkan rumus yang mungkin sudah tersisip dan mengunci ulang sheet.
+>
+> **Perubahan v2.3 — hasil audit keamanan:**
+> - **Celah "formula injection" ditutup (penting).** Sebelumnya, teks yang diawali `=` (mis. diketik di kolom *username* halaman masuk, tanpa perlu login) tersimpan ke sheet sebagai **rumus Google Sheets** yang bisa mengirim isi database ke situs luar ketika spreadsheet dibuka. Kini semua teks diawali `= + - @ '` disimpan sebagai teks biasa di **setiap** penulisan ke sheet, dan rumus lama yang terlanjur tersisip dinetralkan otomatis. Ekspor CSV juga diamankan (tidak dijalankan Excel sebagai rumus).
+> - **Admin hanya bisa membuka berkas milik SI-PRO**, bukan berkas Google Drive lain milik akun pemilik.
+> - **Halaman masuk tidak lagi membocorkan username yang ada** (akun tanpa password dijawab sama seperti password salah).
+> - **Hasil permintaan berulang (idempoten) terikat ke pengguna**, tidak bisa diambil akun lain.
+> - **Fungsi editor baru `bukaKunciLogin('username')`** untuk membuka kunci login 15 menit, mis. bila akun Admin sengaja dikunci orang lain dengan password salah berkali-kali.
+>
 > **Sudah memasang v2.1?** Perbarui **keduanya**: (1) ganti seluruh isi `Kode.gs` → **Deploy → Kelola deployment → ✏️ Edit → Versi: Versi baru → Deploy**; (2) ganti isi folder frontend dengan isi `si-prolat.zip`, isi lagi `GAS_URL`, lalu `git add .` → `git commit -m "v2.2"` → `git push`. Setelah itu masuk sebagai Admin Induk → **Kelola Master → Keamanan → Amankan Sekarang**.
 >
 > **Perbaikan v2.2.1:** di server asli, panel Keamanan sempat menampilkan *TIDAK DIKETAHUI* dan *0/10 terkunci* karena fungsi pengecekan memakai izin Google (`userinfo.email`) yang tidak ada di `appsscript.json`. Kini email pemilik dibaca dari pemilik spreadsheet (izin Drive yang sudah ada) dan folder dicek dengan fungsi folder. Setelah `Kode.gs` 2.2.1 dipasang, sheet **dikunci otomatis** saat aplikasi pertama kali dibuka; lalu tekan **Amankan Sekarang** agar spreadsheet & folder menjadi Privat. Tidak perlu otorisasi ulang.
