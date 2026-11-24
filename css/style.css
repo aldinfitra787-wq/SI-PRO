@@ -762,7 +762,6 @@ body, button, input, select, textarea { font-family: Arial, Helvetica, sans-seri
   .card.fill > .card-b.scroll, .card-b.scroll { flex: 1 1 0; min-height: 0; overflow: auto; }
   .fcol.scroll { overflow: auto; padding-right: 4px; }
   .card.fill > .card-h, .card.fill > .card-f, .card.fill > .toolbar { flex: none; }
-  .tbl thead th { position: sticky; top: 0; z-index: 2; }
   .fit-hide, .card-f.info-f { display: none !important; }
 
   /* Ringkas: judul, kartu, tabel */
@@ -1424,3 +1423,38 @@ body, button, input, select, textarea { font-family: Arial, Helvetica, sans-seri
 .sec-log small { grid-column: 1 / -1; color: var(--ink-2); }
 @media (max-width: 1100px) { .sec-grid { grid-template-columns: minmax(0, 1fr); } .sec-hero { flex-wrap: wrap; } .sec-act { margin-left: 0; } }
 .sec-tbl td, .sec-tbl th { white-space: normal !important; } .sec-tbl th:first-child { width: 30%; }
+
+/* ═══ v2.4 — DATA MENGALIR: tanpa pagination, judul kolom menempel saat digulir ═══ */
+.tbl thead th { position: sticky; top: 0; z-index: 3; background: #f4f7fb; box-shadow: inset 0 -1px 0 var(--line); border-bottom: 0; }
+.tbl thead th.ck { z-index: 4; }
+.alir { overscroll-behavior: contain; scroll-behavior: auto; }
+.alir.di-gulir thead th { box-shadow: inset 0 -1px 0 #cbd5e1, 0 6px 10px -6px rgba(15, 33, 71, .28); }
+/* Di luar mode pas-layar (laptop kecil / tablet) tabel tetap punya batas tinggi agar judul kolom bisa menempel */
+@media (min-width: 761px) {
+  .tbl-wrap.alir { max-height: max(340px, calc(100vh - 230px)); overflow: auto; }
+  .card-b.alir { max-height: max(300px, calc(100vh - 260px)); overflow: auto; }
+}
+@media (min-width: 1024px) and (min-height: 560px) {
+  .card.fill > .tbl-wrap.alir, .card.fill > .card-b.alir { max-height: none; flex: 1 1 0; min-height: 0; overflow: auto; }
+  .card:not(.fill) > .tbl-wrap.alir { max-height: none; }
+}
+/* Gulir halus dengan bilah tipis */
+.alir::-webkit-scrollbar { width: 10px; height: 10px; }
+.alir::-webkit-scrollbar-thumb { background: #c8d2e0; border-radius: 99px; border: 2px solid #fff; }
+.alir::-webkit-scrollbar-thumb:hover { background: #9fb0c8; }
+.alir::-webkit-scrollbar-track { background: transparent; }
+.alir { scrollbar-width: thin; scrollbar-color: #c8d2e0 transparent; }
+/* Penanda "memuat data berikutnya" di ujung bawah */
+.alir-more td, div.alir-more { text-align: center; color: var(--muted); font-family: var(--mono); font-size: 11.5px; letter-spacing: .06em; padding: 12px !important; background: #fbfcfe; }
+.alir-more .spin { width: 12px; height: 12px; margin-right: 8px; vertical-align: -2px; color: var(--blue); }
+.tbl tbody tr.alir-more:hover td { background: #fbfcfe; }
+/* Footer kartu: ringkasan jumlah + petunjuk gulir */
+.flow-hint { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px; letter-spacing: .05em; color: var(--muted); white-space: nowrap; }
+.flow-hint .ic { width: 14px; height: 14px; animation: alirTurun 1.8s ease-in-out infinite; }
+@keyframes alirTurun { 0%, 100% { transform: translateY(0); opacity: .55; } 50% { transform: translateY(2px); opacity: 1; } }
+.card-f[data-apf], .pager { display: none !important; }
+@media (max-width: 760px) {
+  .flow-hint { display: none; }
+  .tbl thead th { position: static; }
+}
+@media (prefers-reduced-motion: reduce) { .flow-hint .ic { animation: none; } }

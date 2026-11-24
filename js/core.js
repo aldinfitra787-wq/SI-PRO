@@ -392,70 +392,65 @@ const Fit = {
 if (Fit.mq.addEventListener) Fit.mq.addEventListener('change', () => { AppState.rev++; Router.refresh(); });
 
 /**
- * Pager otomatis untuk tabel yang barisnya sudah dirender lengkap: menampilkan baris sebanyak yang muat
- * di layar, sisanya lewat tombol halaman. Dipasang sekali per kartu; mengikuti perubahan isi & ukuran.
+ * DATA MENGALIR (pengganti pagination): tabel & daftar digulir di dalam kartunya, JUDUL KOLOM MENEMPEL
+ * di atas, dan baris dirender bertahap (per 60) saat mendekati bawah — tetap ringan walau ribuan data.
+ *   Alir.isi(host, items, row(item, i), { kosong, step, kunci })
+ *   host  : <tbody> atau wadah daftar · kunci: berubah (filter/cari/tab) → kembali ke atas
  */
-const AutoPager = {
-  /** opt.box: wadah yang dibatasi tingginya (default .tbl-wrap) · opt.items: butir yang dipaginasi (default baris tbody) */
-  attach(card, opt) {
-    if (!card) return;
-    if (card._ap) { this.apply(card); return; }
+const Alir = {
+  isi(host, items, row, opt) {
+    if (!host) return;
     opt = opt || {};
-    const box = $(opt.box || '.tbl-wrap', card); if (!box) return;
-    const list = opt.items ? box : $('tbody', box); if (!list) return;
-    card._ap = { page: 1, per: opt.per || 10, box, list, sel: opt.items || '', min: opt.items ? 1 : 3 };
-    let foot = $('.card-f[data-apf]', card);
-    if (!foot) { foot = document.createElement('div'); foot.className = 'card-f'; foot.dataset.apf = '1'; foot.innerHTML = '<span class="foot-info" data-api></span><div class="pager" data-app></div>'; box.after(foot); }
-    foot.addEventListener('click', (e) => { const b = e.target.closest('[data-pg]'); if (b && !b.disabled) { card._ap.page = +b.dataset.pg; this.apply(card); } });
-    // Isi berubah: jumlah butir berbeda (filter/cari) → kembali ke halaman 1; sinkron biasa → tetap di halaman yang sama
-    card._ap.n = this.items(card).length;
-    new MutationObserver(() => { const n = this.items(card).length; if (n !== card._ap.n) { card._ap.page = 1; card._ap.n = n; } this.apply(card); }).observe(list, { childList: true, subtree: !!opt.items });
-    Fit.watch(box, () => this.apply(card));
-    this.apply(card);
-  },
-  items(card) {
-    const st = card._ap;
-    if (st.sel) return $$(st.sel, st.box);
-    return Array.from(st.list.rows).filter((r) => !r.querySelector('td[colspan]') || r.classList.contains('grp'));
-  },
-  apply(card) {
-    const st = card._ap; if (!st || !st.box.isConnected) return;
-    const box = st.box, data = this.items(card);
-    if (!st.sel) Array.from(st.list.rows).forEach((r) => { r.hidden = false; });
-    let per = st.per;
-    if (Fit.on() && box.clientHeight) {
-      // ukur dari awal halaman yang sedang dibuka: berapa butir yang muat tanpa gulir
-      const start = Math.min((st.page - 1) * (st.fitPer || st.per), Math.max(0, data.length - 1));
-      data.forEach((r, i) => { r.hidden = i < start; });
-      if (st.sel) {
-        const top = box.getBoundingClientRect().top, H = box.clientHeight;
-        let fit = 0, maxH = 0;
-        for (const it of data.slice(start)) { const r = it.getBoundingClientRect(); maxH = Math.max(maxH, r.height); if (r.bottom - top <= H + 0.5) fit++; else break; }
-        per = Math.max(st.min, fit);
-      } else per = Fit.rows(box, st.per);
-      st.fitPer = per;
+    const step = opt.step || 60, isTb = host.tagName === 'TBODY';
+    if (host._alirIO) { host._alirIO.disconnect(); host._alirIO = null; }
+    const box = host.closest('.alir, .tbl-wrap, .card-b');
+    if (opt.kunci !== undefined && opt.kunci !== host._alirKunci) { host._alirKunci = opt.kunci; host._alirN = 0; if (box) box.scrollTop = 0; }
+    if (!items.length) { host.innerHTML = opt.kosong || ''; host._alirN = 0; return; }
+    // data diperbarui (sinkron/simpan) → jumlah yang sudah dimuat dipertahankan, posisi gulir tidak melompat
+    let n = Math.min(items.length, Math.max(step, host._alirN || 0));
+    const more = () => isTb ? '<tr class="alir-more" aria-hidden="true"><td colspan="99"><span class="spin"></span>Memuat data berikutnya…</td></tr>'
+      : '<div class="alir-more" aria-hidden="true"><span class="spin"></span>Memuat data berikutnya…</div>';
+    host.innerHTML = items.slice(0, n).map((it, k) => row(it, k)).join('') + (n < items.length ? more() : '');
+    host._alirN = n;
+    if (n >= items.length || !window.IntersectionObserver) {
+      if (n < items.length) { host.innerHTML = items.map((it, k) => row(it, k)).join(''); host._alirN = items.length; }
+      return;
     }
-    let pages;
-    const slice = () => { pages = Math.max(1, Math.ceil(data.length / per)); st.page = Math.min(st.page, pages); data.forEach((r, i) => { r.hidden = !(i >= (st.page - 1) * per && i < st.page * per); }); };
-    slice();
-    // pengaman: butir setinggi tak biasa → kurangi jumlah per halaman sampai benar-benar pas
-    while (Fit.on() && per > st.min && box.scrollHeight > box.clientHeight + 1) { per--; st.fitPer = per; slice(); }
-    const info = $('[data-api]', card), pg = $('[data-app]', card);
-    if (info) info.innerHTML = data.length ? 'Menampilkan <b>' + ((st.page - 1) * per + 1) + '–' + Math.min(data.length, st.page * per) + '</b> dari <b>' + data.length + '</b>' : '';
-    if (pg) pg.innerHTML = pagerHtml(st.page, pages);
-    const f = $('.card-f[data-apf]', card); if (f) f.hidden = pages <= 1;
+    const io = new IntersectionObserver((en) => {
+      if (!en.some((e) => e.isIntersecting)) return;
+      const s = host.querySelector(':scope > .alir-more'); if (s) s.remove();
+      const end = Math.min(items.length, n + step);
+      host.insertAdjacentHTML('beforeend', items.slice(n, end).map((it, k) => row(it, n + k)).join('') + (end < items.length ? more() : ''));
+      n = end; host._alirN = n;
+      io.disconnect();
+      const s2 = host.querySelector(':scope > .alir-more'); if (s2) io.observe(s2);
+      if (opt.setelah) opt.setelah();
+    }, { root: box && box.classList.contains('alir') && (Fit.on() || getComputedStyle(box).maxHeight !== 'none') ? box : null, rootMargin: '400px 0px' });
+    host._alirIO = io;
+    io.observe(host.querySelector(':scope > .alir-more'));
   }
 };
 
-function pagerHtml(page, pages) {
-  if (pages <= 1) return '';
-  const btn = (p, label, dis, on) => '<button data-pg="' + p + '"' + (dis ? ' disabled' : '') + (on ? ' class="on"' : '') + '>' + label + '</button>';
-  let h = btn(page - 1, '‹', page <= 1);
-  const show = new Set([1, pages, page - 1, page, page + 1].filter((p) => p >= 1 && p <= pages));
-  let last = 0;
-  Array.from(show).sort((a, b) => a - b).forEach((p) => { if (p - last > 1) h += '<span class="gap">…</span>'; h += btn(p, p, false, p === page); last = p; });
-  return h + btn(page + 1, '›', page >= pages);
-}
+/**
+ * Tabel/daftar yang barisnya sudah lengkap (Rekap, Belum Mengirim, Kelola Master, dsb.):
+ * TANPA pagination — digulir di dalam kartu dengan judul kolom menempel. (Nama lama "AutoPager" dipertahankan.)
+ */
+const AutoPager = {
+  attach(card, opt) {
+    if (!card) return;
+    opt = opt || {};
+    const box = $(opt.box || '.tbl-wrap', card); if (!box) return;
+    box.classList.add('alir'); card.classList.add('alir-card');
+    $$('[hidden]', box).forEach((x) => { if (x.matches('tr, ' + (opt.items || 'tr'))) x.hidden = false; });
+    const old = $('.card-f[data-apf]', card); if (old) old.remove();          // footer pager versi lama
+    if (!card._flowObs) {
+      card._flowObs = true;
+      const tanda = () => box.classList.toggle('di-gulir', box.scrollTop > 2);
+      box.addEventListener('scroll', tanda, { passive: true });
+    }
+  }
+};
+
 /** Lihat PDF (berkas pribadi di Drive) — hanya lewat aplikasi, setelah server cek hak akses. */
 const PdfCache = {};
 /** Ambil berkas pribadi (PDF/JPG) dari server sekali, lalu simpan sebagai URL blob di memori. */

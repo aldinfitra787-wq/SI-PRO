@@ -1,4 +1,4 @@
-# PANDUAN INSTALASI — SI-PRO v2.3
+# PANDUAN INSTALASI — SI-PRO v2.4
 
 Sistem Informasi Pendidikan dan Pelatihan · SPN Polda Papua Barat
 
@@ -15,13 +15,23 @@ Yang Anda terima:
 
 | Berkas | Untuk apa |
 |---|---|
-| `Kode.gs` | Backend. Disalin-tempel ke editor Apps Script (**berubah di v2.3**) |
+| `Kode.gs` | Backend. Disalin-tempel ke editor Apps Script (terakhir berubah di v2.3 — **tidak berubah di v2.4**) |
 | `appsscript.json` | Manifest Apps Script (zona waktu WIT & izin) |
 | `si-prolat.zip` | Frontend untuk GitHub Pages (isi ZIP = isi repository) |
 | `PANDUAN-INSTALASI.md` | Dokumen ini |
 
 Urutan kerja: **A → C → D**. Total ±30 menit. Login memakai **username + password** (tidak perlu akun Google bagi petugas, tidak perlu Google Cloud Console).
 
+> **Sudah memasang v2.3?** Pembaruan v2.4 **hanya frontend**: ganti isi repository dengan ZIP baru, **isi lagi `GAS_URL` di `js/config.js`** dengan URL `/exec` Anda (ZIP berisi `GAS_URL` kosong), lalu `git add .` → `git commit -m "v2.4 data mengalir"` → `git push`. `Kode.gs` tidak perlu disentuh. Setelah ±1 menit, buka situs dan tekan **Ctrl+Shift+R** (versi di pojok/console harus 2.4.0).
+>
+> **Perubahan v2.4 — tabel "data mengalir" (tanpa pagination):**
+> - **Semua tabel & daftar di semua menu** (Beranda, Data Peserta, Rekapitulasi, Belum Mengirim, Pangkalan Data Diklat, Pengumuman, Kelola Master: Pengguna/Satker/Pelatihan/Log) tidak lagi memakai tombol halaman 1-2-3. Data cukup **digulir** di dalam kartunya.
+> - **Judul kolom menempel di atas** saat tabel digulir, dengan bayangan tipis sebagai penanda — Anda selalu tahu kolom mana yang sedang dibaca.
+> - **Baris dimuat bertahap** (60 baris sekali muat) saat gulir mendekati bawah, sehingga tetap ringan walau data ribuan. Nomor urut bersambung, dan footer menampilkan jumlah total data.
+> - Saat filter/pencarian/tab diganti, tabel kembali ke baris paling atas; saat data diperbarui (simpan/sinkron), posisi gulir **tidak melompat**.
+> - **Centang "pilih semua"** kini memilih **seluruh** data yang sedang tersaring (bukan hanya satu halaman), siap untuk Unduh Excel / Hapus Massal.
+> - Di layar komputer halaman tetap tidak bergulir (mode pas layar); di HP, data tampil sebagai kartu dan bertambah otomatis saat halaman digulir ke bawah.
+>
 > **Sudah memasang v2.2 / v2.2.1?** Perbarui **keduanya** (Kode.gs → Deploy versi baru; frontend → `git push`). Tidak perlu otorisasi ulang. Saat aplikasi pertama kali dibuka, server otomatis menetralkan rumus yang mungkin sudah tersisip dan mengunci ulang sheet.
 >
 > **Perubahan v2.3 — hasil audit keamanan:**

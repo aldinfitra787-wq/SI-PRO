@@ -28,14 +28,12 @@ function berandaAdmin(el, again) {
       '<button class="btn btn-icon" data-sync title="Sinkronkan data" aria-label="Sinkronkan">' + ic('refresh') + '</button><a class="btn btn-primary" href="#/master/pelatihan">' + ic('graduation') + 'Pelatihan &amp; Kuota</a></div></div>' +
       '<div data-body class="fcol fill"></div>';
     el._built = true;
-    Fit.watch($('[data-body]', el), () => { if (Router.cur === 'beranda') berandaAdmin(el); });
     $('[data-sync]', el).addEventListener('click', async (e) => { const done = busyBtn(e.currentTarget, ''); const r = await Data.sync(true); done(); toast(r.success ? 'Data terbaru sudah dimuat.' : r.message, r.success ? 'info' : 'error'); });
     $('[data-f=pel]', el).addEventListener('change', (e) => { setPel(e.target.value); Beranda.page = 1; berandaAdmin(el); });
     $('[data-f=wil]', el).addEventListener('change', (e) => { Beranda.wil = e.target.value; Beranda.page = 1; berandaAdmin(el); });
     el.addEventListener('click', (e) => {
       const go = e.target.closest('[data-goto-belum]'); if (go) { AppState.selPel = go.dataset.gotoBelum; Router.go('belum'); }
       const lihat = e.target.closest('[data-lihat]'); if (lihat) { const [s, p] = lihat.dataset.lihat.split('|'); Object.assign(PesertaPg, { sat: s, pel: p, polda: '', q: '', page: 1 }); Router.go('peserta'); }
-      const pg = e.target.closest('[data-pg]'); if (pg && !pg.disabled) { Beranda.page = +pg.dataset.pg; berandaAdmin(el); }
     });
   }
   $('[data-f=pel]', el).innerHTML = pelOptions(pelId) || '<option value="">Belum ada pelatihan</option>';
@@ -90,8 +88,7 @@ function berandaAdmin(el, again) {
   let recent = Object.values(grp).sort((a, b) => String(b.last).localeCompare(String(a.last)));
   const q = Beranda.q.toLowerCase();
   if (q) recent = recent.filter((g) => D.satNama(g.sat).toLowerCase().includes(q) || D.pelNama(g.pel).toLowerCase().includes(q));
-  const per = Beranda.per, pages = Math.max(1, Math.ceil(recent.length / per)); Beranda.page = Math.min(Beranda.page, pages);
-  const slice = recent.slice((Beranda.page - 1) * per, Beranda.page * per);
+  const slice = recent;                                     // tanpa halaman: semua pengiriman, digulir
   const bk = (lbl, x, n) => '<span class="berkas-ok ' + (x === n ? '' : x ? 'berkas-part' : 'berkas-no') + '">' + lbl + '<span>' + (x === n ? '[OK]' : x + '/' + n) + '</span></span>';
   const rows = slice.length ? slice.map((g) => {
     const s = D.sat(g.sat) || {}, full = g.sprin === g.n && g.sppd === g.n, kq = D.alok(g.pel)[g.sat] || 0;
@@ -107,7 +104,7 @@ function berandaAdmin(el, again) {
     '<div class="card fill"><div class="card-h"><div><h3 class="up"><span class="ico">' + ic('history') + '</span>Pengiriman Data Terakhir</h3></div>' +
     '<div class="with-ic" style="min-width:240px">' + ic('search') + '<input class="input" data-q placeholder="Cari Satker / Polres…" value="' + esc(Beranda.q) + '"></div></div>' +
     '<div class="tbl-wrap" data-wrap><table class="tbl rtable fx tbl-recent"><thead><tr><th>Satker / Polres</th><th>Program</th><th>Jumlah</th><th>Waktu</th><th>Berkas</th><th class="r"></th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
-    '<div class="card-f"><span class="foot-info">Menampilkan ' + slice.length + ' dari ' + recent.length + ' pengiriman</span><div class="pager">' + pagerHtml(Beranda.page, pages) + '</div></div></div>' +
+    '<div class="card-f"><span class="foot-info"><b>' + recent.length + '</b> pengiriman</span><span class="flow-hint">' + ic('chevron-down') + 'Gulir untuk melihat semua</span></div></div>' +
     '<div class="fcol side">' +
     '<div class="card fill" data-progc><div class="card-h"><h3 class="up"><span class="ico">' + ic('chart') + '</span>Progress per Pelatihan</h3><span class="tag tag-blue fit-no">' + (wil ? D.poldaShort(wil) : 'PB + PBD') + '</span></div><div class="card-b scroll">' + prog + '</div></div>' +
     '<div class="card"><div class="card-h"><h3 class="up"><span class="ico">' + ic('pie') + '</span>Distribusi per Polda</h3><span class="tag tag-gray">N = ' + pes.length + '</span></div><div class="card-b donut-row">' +
@@ -115,8 +112,7 @@ function berandaAdmin(el, again) {
     '<div class="legend"><div class="lbl" style="margin-bottom:4px">' + esc(pel ? pel.Nama_Pelatihan : '') + '</div><div class="li"><i style="background:#1e3a8a"></i>Polda Papua Barat<span class="v"><b>' + pb + '</b> (' + pct(pb, pes.length) + '%)</span></div>' +
     '<div class="li"><i style="background:#0ea5e9"></i>Polda Papua Barat Daya<span class="v"><b>' + pbd + '</b> (' + pct(pbd, pes.length) + '%)</span></div></div></div></div>' +
     '</div></div>';
-  const want = Fit.on() ? Fit.rows($('[data-wrap]', el), 6) : 6;
-  if (want !== Beranda.per && (again || 0) < 2) { Beranda.per = want; return berandaAdmin(el, (again || 0) + 1); }
+  AutoPager.attach($('[data-wrap]', el).parentElement);
   AutoPager.attach($('[data-progc]', el), { box: '.card-b', items: '.prog-item' });
   const qi = $('[data-q]', el);
   qi.addEventListener('input', debounce((e) => { Beranda.q = e.target.value; Beranda.page = 1; berandaAdmin(el); const n = $('[data-q]', el); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 250));
@@ -539,7 +535,7 @@ function pesertaBuild(el) {
     '<div data-bulk></div>' +
     '<div class="card fill"><div class="tbl-wrap" data-wrap><table class="tbl rtable fx tbl-peserta' + (admin ? ' adm' : '') + '"><thead><tr><th class="ck"><input type="checkbox" data-all aria-label="Pilih semua"></th><th class="c">No</th><th>Nama</th><th>NRP / NIP</th><th>Pangkat</th><th>Jabatan</th>' + (admin ? '<th>Satker / Polres</th>' : '') +
     '<th>Program Pelatihan</th><th class="c">SPRIN</th><th class="c">SPPD</th><th class="r">Aksi</th></tr></thead><tbody data-rows></tbody></table></div>' +
-    '<div class="card-f"><span class="foot-info" data-info></span><div class="pager" data-pager></div></div></div>';
+    '<div class="card-f"><span class="foot-info" data-info></span><span class="flow-hint">' + ic('chevron-down') + 'Gulir untuk melihat data berikutnya</span></div></div>';
   el._built = true;
   const S = PesertaPg;
   const search = $('#pSearch', el);
@@ -547,9 +543,10 @@ function pesertaBuild(el) {
   $$('[data-f]', el).forEach((s) => s.addEventListener('change', () => { S[s.dataset.f] = s.value; if (s.dataset.f === 'polda') S.sat = ''; S.page = 1; pesertaUpdate(el); }));
   const csv = $('[data-csv]', el); if (csv) csv.addEventListener('click', () => pesertaCsv(pesertaFiltered(), 'peserta'));
   const xl = $('[data-xlsx]', el); if (xl) xl.addEventListener('click', () => pesertaExcel(pesertaFiltered()));
-  Fit.watch($('[data-wrap]', el), () => pesertaUpdate(el));
+  $('[data-wrap]', el).classList.add('alir');
+  $('[data-wrap]', el).addEventListener('scroll', (e) => e.currentTarget.classList.toggle('di-gulir', e.currentTarget.scrollTop > 2), { passive: true });
   $('[data-all]', el).addEventListener('change', (e) => {
-    const ids = pesertaPageItems().filter(canDeletePeserta).map((p) => p.ID_Peserta);
+    const ids = pesertaFiltered().filter(canDeletePeserta).map((p) => p.ID_Peserta);     // semua data yang sedang tersaring
     ids.forEach((id) => e.target.checked ? S.sel.add(id) : S.sel.delete(id)); pesertaUpdate(el);
   });
   el.addEventListener('click', async (e) => {
@@ -564,7 +561,6 @@ function pesertaBuild(el) {
     const chip = e.target.closest('[data-unset]'); if (chip) { S[chip.dataset.unset] = ''; if (chip.dataset.unset === 'q') search.value = ''; S.page = 1; pesertaUpdate(el); }
     if (e.target.closest('[data-resetf]')) { Object.assign(S, { q: '', polda: '', sat: '', pel: '', kel: '', page: 1 }); search.value = ''; pesertaUpdate(el); }
     const jn = e.target.closest('[data-jn-v]'); if (jn) { S.jenis = jn.dataset.jnV; S.sat = ''; S.page = 1; pesertaUpdate(el); }
-    const pg = e.target.closest('[data-pg]'); if (pg && !pg.disabled) { S.page = +pg.dataset.pg; pesertaUpdate(el); if (!Fit.on()) el.scrollIntoView({ block: 'start' }); }
     const bk = e.target.closest('[data-bulk-act]');
     if (bk) {
       const ids = Array.from(S.sel);
@@ -575,8 +571,6 @@ function pesertaBuild(el) {
   });
   el.addEventListener('change', (e) => { const c = e.target.closest('[data-ck]'); if (c) { c.checked ? S.sel.add(c.dataset.ck) : S.sel.delete(c.dataset.ck); pesertaUpdate(el); } });
 }
-
-function pesertaPageItems() { const all = pesertaFiltered(); const S = PesertaPg; return all.slice((S.page - 1) * S.per, S.page * S.per); }
 
 function pesertaUpdate(el, again) {
   const S = PesertaPg, admin = isAdmin();
@@ -595,8 +589,7 @@ function pesertaUpdate(el, again) {
 
   const all = pesertaFiltered();
   const valid = new Set(D.d.peserta.map((p) => p.ID_Peserta)); Array.from(S.sel).forEach((id) => { if (!valid.has(id)) S.sel.delete(id); });
-  const pages = Math.max(1, Math.ceil(all.length / S.per)); S.page = Math.min(S.page, pages);
-  const items = all.slice((S.page - 1) * S.per, S.page * S.per);
+  const items = all;                                        // tanpa halaman: semua data mengalir saat digulir
 
   const chips = [];
   if (S.q) chips.push(['q', 'Cari: ' + S.q, '']);
@@ -616,11 +609,11 @@ function pesertaUpdate(el, again) {
 
   const fb = (p, j) => p['Link_' + j] ? (p._pending ? '<span class="fbtn ok">ADA</span>' : '<button class="fbtn ok" data-act="file" data-j="' + j + '" data-id="' + esc(p.ID_Peserta) + '" title="Buka ' + j + '">' + ic('file-text') + 'ADA</button>') : '<span class="fbtn no" title="' + j + ' belum diunggah">BELUM</span>';
   const ncol = admin ? 11 : 10;
-  $('[data-rows]', el).innerHTML = items.length ? items.map((p, i) => {
+  const baris = (p, i) => {
     const busy = !!p._pending, can = !busy && canEditPeserta(p), canDel = !busy && canDeletePeserta(p), sel = S.sel.has(p.ID_Peserta);
     const pel = D.pelNama(p.ID_Pelatihan), sat = D.satNama(p.ID_Satker);
     return '<tr class="' + (sel ? 'sel' : '') + (busy ? ' pending' : '') + '"><td class="ck">' + (canDel ? '<input type="checkbox" data-ck="' + esc(p.ID_Peserta) + '"' + (sel ? ' checked' : '') + ' aria-label="Pilih">' : '') + '</td>' +
-      '<td class="no no-m c">' + ((S.page - 1) * S.per + i + 1) + '</td>' +
+      '<td class="no no-m c">' + (i + 1) + '</td>' +
       '<td class="main" title="' + esc(p.Nama) + '"><div class="nm">' + esc(p.Nama) + '</div></td>' +
       '<td data-l="NRP / NIP" class="mono-n">' + esc(p.NRP_NIP) + '</td>' +
       '<td data-l="Pangkat" class="pkt">' + esc(p.Pangkat) + '</td>' +
@@ -630,15 +623,15 @@ function pesertaUpdate(el, again) {
       '<td data-l="SPRIN" class="c">' + fb(p, 'SPRIN') + '</td><td data-l="SPPD" class="c">' + fb(p, 'SPPD') + '</td>' +
       '<td class="acts-td"><div class="acts">' + (busy ? '<span class="tag tag-blue"><span class="spin" style="width:10px;height:10px"></span>Menyimpan…</span>' : '<button class="btn btn-xs act-view" data-act="view" data-id="' + esc(p.ID_Peserta) + '">Lihat</button>' +
       (can ? '<button class="btn btn-xs act-edit" data-act="edit" data-id="' + esc(p.ID_Peserta) + '">Edit</button>' : '') + (canDel ? '<button class="btn btn-xs act-del" data-act="del" data-id="' + esc(p.ID_Peserta) + '">Hapus</button>' : '')) + '</div></td></tr>';
-  }).join('') : '<tr><td colspan="' + ncol + '"><div class="empty">' + ic('search') + '<b>' + (admin ? 'Belum ada kiriman ' + esc(S.jenis) + ' yang cocok' : 'Tidak ada data yang cocok') + '</b>' + (D.d.peserta.length ? 'Ubah kata kunci atau reset filter.' : 'Belum ada peserta.' + (admin ? '' : ' Mulai dengan menekan "Tambah Peserta".')) + '</div></td></tr>';
+  };
+  Alir.isi($('[data-rows]', el), items, baris, {
+    kunci: JSON.stringify([S.q, S.polda, S.sat, S.pel, S.kel, S.jenis]),
+    kosong: '<tr><td colspan="' + ncol + '"><div class="empty">' + ic('search') + '<b>' + (admin ? 'Belum ada kiriman ' + esc(S.jenis) + ' yang cocok' : 'Tidak ada data yang cocok') + '</b>' + (D.d.peserta.length ? 'Ubah kata kunci atau reset filter.' : 'Belum ada peserta.' + (admin ? '' : ' Mulai dengan menekan "Tambah Peserta".')) + '</div></td></tr>'
+  });
   const allCk = $('[data-all]', el), pageIds = items.filter(canDeletePeserta).map((p) => p.ID_Peserta);
   allCk.checked = pageIds.length > 0 && pageIds.every((id) => S.sel.has(id));
   allCk.indeterminate = !allCk.checked && pageIds.some((id) => S.sel.has(id));
-  $('[data-info]', el).innerHTML = '<span class="dot"></span>' + (admin ? esc(S.jenis) + ' · ' : '') + 'Menampilkan <b>' + (items.length ? (S.page - 1) * S.per + 1 : 0) + '–' + ((S.page - 1) * S.per + items.length) + '</b> dari <b>' + all.length + '</b> peserta';
-  $('[data-pager]', el).innerHTML = pagerHtml(S.page, pages);
-  // Pas layar: jumlah baris mengikuti tinggi area tabel (tanpa gulir)
-  const per = Fit.on() ? Fit.rows($('[data-wrap]', el), 10) : 10;
-  if (per !== S.per && (again || 0) < 2) { const first = (S.page - 1) * S.per; S.per = per; S.page = Math.floor(first / per) + 1; pesertaUpdate(el, (again || 0) + 1); }
+  $('[data-info]', el).innerHTML = '<span class="dot"></span>' + (admin ? esc(S.jenis) + ' · ' : '') + '<b>' + all.length + '</b> peserta' + (S.sel.size ? ' · <b>' + S.sel.size + '</b> dipilih' : '');
 }
 
 function pesertaDetail(p) {

@@ -94,7 +94,7 @@ function pkBuild(el) {
     '</div></div></div>' +
     '<div data-bulk></div>' +
     '<div class="card fill"><div class="tbl-wrap" data-wrap><table class="tbl rtable fx tbl-pk"><thead><tr><th class="ck w-ck"><input type="checkbox" data-all aria-label="Pilih semua"></th><th class="c w-no">No</th><th class="w-nm">Nama</th><th class="w-nrp">NRP / NIP</th><th class="w-pkt">Pangkat</th><th class="w-jab">Jabatan</th><th class="w-sat">Satker / Polres</th><th class="w-dik">Nama Diklat</th><th class="c w-th">Tahun</th><th class="c w-src">Sumber</th><th class="r w-act">Aksi</th></tr></thead><tbody data-rows></tbody></table></div>' +
-    '<div class="card-f"><span class="foot-info" data-info></span><div class="pager" data-pager></div></div></div>';
+    '<div class="card-f"><span class="foot-info" data-info></span><span class="flow-hint">' + ic('chevron-down') + 'Gulir untuk melihat data berikutnya</span></div></div>';
   el._built = true;
   const S = PangkalanPg;
   const qi = $('[data-q]', el);
@@ -103,13 +103,13 @@ function pkBuild(el) {
   $('[data-add]', el).addEventListener('click', () => pkForm(null));
   $('[data-imp]', el).addEventListener('click', () => pkImport());
   $('[data-xlsx]', el).addEventListener('click', () => pkExcel(pkFiltered()));
-  Fit.watch($('[data-wrap]', el), () => pkUpdate(el));
-  $('[data-all]', el).addEventListener('change', (e) => { pkPageItems().filter((r) => !r.app && !r._pending).forEach((r) => e.target.checked ? S.sel.add(r.ID_Riwayat) : S.sel.delete(r.ID_Riwayat)); pkUpdate(el); });
+  $('[data-wrap]', el).classList.add('alir');
+  $('[data-wrap]', el).addEventListener('scroll', (e) => e.currentTarget.classList.toggle('di-gulir', e.currentTarget.scrollTop > 2), { passive: true });
+  $('[data-all]', el).addEventListener('change', (e) => { pkFiltered().filter((r) => !r.app && !r._pending).forEach((r) => e.target.checked ? S.sel.add(r.ID_Riwayat) : S.sel.delete(r.ID_Riwayat)); pkUpdate(el); });
   el.addEventListener('change', (e) => { const c = e.target.closest('[data-ck]'); if (c) { c.checked ? S.sel.add(c.dataset.ck) : S.sel.delete(c.dataset.ck); pkUpdate(el); } });
   el.addEventListener('click', (e) => {
     const k = e.target.closest('[data-kat-v]'); if (k) { S.kat = k.dataset.katV; S.diklat = ''; S.tahun = ''; S.page = 1; S.sel.clear(); pkUpdate(el); return; }
     const j = e.target.closest('[data-jn-v]'); if (j) { S.jenis = j.dataset.jnV; S.page = 1; pkUpdate(el); return; }
-    const pg = e.target.closest('[data-pg]'); if (pg && !pg.disabled) { S.page = +pg.dataset.pg; pkUpdate(el); return; }
     const b = e.target.closest('[data-pk]');
     if (b) {
       const r = pkAll().find((x) => x.ID_Riwayat === b.dataset.id); if (!r) return;
@@ -127,7 +127,6 @@ function pkBuild(el) {
   });
 }
 
-function pkPageItems() { const S = PangkalanPg, all = pkFiltered(); return all.slice((S.page - 1) * S.per, S.page * S.per); }
 
 function pkUpdate(el, again) {
   const S = PangkalanPg, all = pkAll();
@@ -161,8 +160,7 @@ function pkUpdate(el, again) {
 
   const list = pkFiltered();
   const valid = new Set(all.map((r) => r.ID_Riwayat)); Array.from(S.sel).forEach((id) => { if (!valid.has(id)) S.sel.delete(id); });
-  const pages = Math.max(1, Math.ceil(list.length / S.per)); S.page = Math.min(S.page, pages);
-  const items = list.slice((S.page - 1) * S.per, S.page * S.per);
+  const items = list;                                       // tanpa halaman: data mengalir saat digulir
 
   $('[data-bulk]', el).innerHTML = S.sel.size ? '<div class="bulk"><span class="dot" style="color:#60a5fa"></span><span class="n">' + S.sel.size + ' RIWAYAT DIPILIH</span><span class="t">DATA MANUAL / IMPOR</span><span class="sp"></span>' +
     '<button class="btn btn-sm" data-bulk-act="clear" style="background:transparent;color:#fff;border-color:#2d4a85">Batal pilih</button>' +
@@ -172,10 +170,10 @@ function pkUpdate(el, again) {
   const src = (r) => r.app ? '<span class="tag tag-blue" title="Peserta pelatihan SI-PRO yang sudah selesai">APLIKASI</span>' : r.Sumber === 'Impor' ? '<span class="tag tag-amber">IMPOR</span>' : '<span class="tag tag-gray">MANUAL</span>';
   const empty = !PK.rows && PK.loading ? '<span class="spin" style="width:22px;height:22px;color:var(--blue)"></span><b>Memuat Pangkalan Data…</b>'
     : ic('search') + '<b>Belum ada riwayat ' + esc(S.kat) + ' dari ' + esc(S.jenis) + '</b>' + (S.q || S.diklat || S.tahun || S.polda ? 'Ubah kata kunci atau filter.' : 'Peserta pelatihan yang sudah selesai masuk otomatis. Riwayat lama dapat ditambah atau diimpor dari Excel.');
-  $('[data-rows]', el).innerHTML = items.length ? items.map((r, i) => {
+  const baris = (r, i) => {
     const busy = !!r._pending, can = !r.app && !busy, sel = S.sel.has(r.ID_Riwayat);
     return '<tr class="' + (sel ? 'sel' : '') + (busy ? ' pending' : '') + '"><td class="ck">' + (can ? '<input type="checkbox" data-ck="' + esc(r.ID_Riwayat) + '"' + (sel ? ' checked' : '') + ' aria-label="Pilih">' : '') + '</td>' +
-      '<td class="no no-m c">' + ((S.page - 1) * S.per + i + 1) + '</td>' +
+      '<td class="no no-m c">' + (i + 1) + '</td>' +
       '<td class="main" title="' + esc(r.Nama) + '"><div class="nm">' + esc(r.Nama) + '</div></td>' +
       '<td data-l="NRP / NIP" class="mono-n">' + esc(r.NRP_NIP) + '</td>' +
       '<td data-l="Pangkat" class="pkt">' + esc(r.Pangkat || '-') + '</td>' +
@@ -187,14 +185,12 @@ function pkUpdate(el, again) {
       '<td class="acts-td"><div class="acts">' + (busy ? '<span class="tag tag-blue"><span class="spin" style="width:10px;height:10px"></span>Menyimpan…</span>'
         : '<button class="btn btn-xs act-view" data-pk="lihat" data-id="' + esc(r.ID_Riwayat) + '" title="Riwayat lengkap personel">' + ic('history') + '<span class="bt">Riwayat</span></button>' +
         (can ? '<button class="btn btn-xs act-edit" data-pk="edit" data-id="' + esc(r.ID_Riwayat) + '" title="Edit">' + ic('pencil') + '<span class="bt">Edit</span></button><button class="btn btn-xs act-del" data-pk="del" data-id="' + esc(r.ID_Riwayat) + '" title="Hapus">' + ic('trash') + '<span class="bt">Hapus</span></button>' : '')) + '</div></td></tr>';
-  }).join('') : '<tr><td colspan="11"><div class="empty">' + empty + '</div></td></tr>';
+  };
+  Alir.isi($('[data-rows]', el), items, baris, { kunci: JSON.stringify([S.kat, S.jenis, S.q, S.diklat, S.tahun, S.polda]), kosong: '<tr><td colspan="11"><div class="empty">' + empty + '</div></td></tr>' });
   const allCk = $('[data-all]', el), ids = items.filter((r) => !r.app && !r._pending).map((r) => r.ID_Riwayat);
   allCk.checked = ids.length > 0 && ids.every((id) => S.sel.has(id)); allCk.indeterminate = !allCk.checked && ids.some((id) => S.sel.has(id)); allCk.disabled = !ids.length;
   const uniq = new Set(list.map((r) => r.NRP_NIP)).size;
-  $('[data-info]', el).innerHTML = '<span class="dot"></span>' + esc(S.kat) + ' · ' + esc(S.jenis) + ': <b>' + list.length + '</b> riwayat · <b>' + uniq + '</b> personel' + (items.length ? ' · baris ' + ((S.page - 1) * S.per + 1) + '–' + ((S.page - 1) * S.per + items.length) : '');
-  $('[data-pager]', el).innerHTML = pagerHtml(S.page, pages);
-  const per = Fit.on() ? Fit.rows($('[data-wrap]', el), 10) : 10;
-  if (per !== S.per && (again || 0) < 2) { const first = (S.page - 1) * S.per; S.per = per; S.page = Math.floor(first / per) + 1; pkUpdate(el, (again || 0) + 1); }
+  $('[data-info]', el).innerHTML = '<span class="dot"></span>' + esc(S.kat) + ' · ' + esc(S.jenis) + ': <b>' + list.length + '</b> riwayat · <b>' + uniq + '</b> personel' + (S.sel.size ? ' · <b>' + S.sel.size + '</b> dipilih' : '');
 }
 
 /* ── Riwayat lengkap satu personel (semua kategori) ── */
